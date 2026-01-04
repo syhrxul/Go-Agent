@@ -3,7 +3,7 @@
     "name": "MacMon",
     "slug": "MacMon",
     "version": "1.0.0",
-    "orientation": "portrait",
+    "orientation": "landscape",
     "icon": "./assets/images/icon.png",
     "scheme": "macmon",
     "userInterfaceStyle": "automatic",
@@ -22,7 +22,10 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "statusBar": {
+        "hidden": "true",
+      }
     },
     "web": {
       "bundler": "metro",
