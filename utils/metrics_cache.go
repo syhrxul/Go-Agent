@@ -1,23 +1,11 @@
 package utils
 
-import (
-	"sync"
-	"time"
-)
-
-var (
-	cache     PowerMetrics
-	lastRead  time.Time
-	cacheLock sync.Mutex
-)
+func init() {
+	// Start the background collector
+	go StartPowerMetricsLoop()
+}
 
 func GetPowerMetrics() PowerMetrics {
-	cacheLock.Lock()
-	defer cacheLock.Unlock()
-
-	if time.Since(lastRead) > 1*time.Second {
-		cache = readPowerMetrics()
-		lastRead = time.Now()
-	}
-	return cache
+	// Return the latest available metrics from the background collector
+	return GetLatestPowerMetrics()
 }
