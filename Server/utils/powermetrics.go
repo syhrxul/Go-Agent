@@ -14,9 +14,12 @@ type PowerMetrics struct {
 }
 
 func readPowerMetrics() PowerMetrics {
+	// Tambahkan flag "-i", "1000" agar sampling berjalan selama 1 detik
 	out, _ := exec.Command("sudo", "powermetrics",
 		"--samplers", "cpu_power,gpu_power,thermal",
-		"-n", "1").Output()
+		"-n", "1",
+		"-i", "1000",
+	).Output()
 
 	s := string(out)
 

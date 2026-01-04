@@ -7,17 +7,25 @@ import (
 
 var (
 	cache     PowerMetrics
-	lastRead  time.Time
 	cacheLock sync.Mutex
 )
+
+func StartMetricsCollector() {
+	go func() {
+		for {
+
+			data := readPowerMetrics()
+
+			cacheLock.Lock()
+			cache = data
+			cacheLock.Unlock()
+			time.Sleep(100 * time.Millisecond)
+		}
+	}()
+}
 
 func GetPowerMetrics() PowerMetrics {
 	cacheLock.Lock()
 	defer cacheLock.Unlock()
-
-	if time.Since(lastRead) > 5*time.Second {
-		cache = readPowerMetrics()
-		lastRead = time.Now()
-	}
 	return cache
 }
