@@ -16,6 +16,7 @@ type PowerMetrics struct {
 func readPowerMetrics() PowerMetrics {
 	out, _ := exec.Command("sudo", "powermetrics",
 		"--samplers", "cpu_power,gpu_power,thermal",
+		"-i", "500",
 		"-n", "1").Output()
 
 	s := string(out)
