@@ -8,6 +8,7 @@ import (
 	"Agent/utils"
 )
 
+// ... (Struct Stats tetap sama, pastikan ada Network dengan field baru) ...
 type Stats struct {
 	TS            int64   `json:"ts"`
 	CPU           float64 `json:"cpu"`
@@ -19,58 +20,46 @@ type Stats struct {
 	BatteryStatus string  `json:"battery_status"`
 	BatteryTime   string  `json:"battery_time"`
 	Uptime        string  `json:"uptime"`
-
-	Network struct {
+	Network       struct {
 		RxSpeed string `json:"rx_speed"`
 		TxSpeed string `json:"tx_speed"`
 		RxTotal string `json:"rx_total"`
 		TxTotal string `json:"tx_total"`
 	} `json:"network"`
-
-	// Field Processes DIHAPUS dari sini
 }
 
+// Handler LAMA (SSE - Streaming) - Biarkan saja jika ingin dipakai di web
 func StatsHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
+	// ... (kode lama yang ada for loop) ...
+}
 
-	flusher := w.(http.Flusher)
+// HANDLER BARU (JSON Biasa - Sekali Request)
+func StatsOnceHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
 
-	ticker := time.NewTicker(1 * time.Second)
-	defer ticker.Stop()
+	// Ambil data langsung (tanpa loop/ticker)
+	pm := utils.GetPowerMetrics()
+	batt := utils.GetBatteryInfo()
+	netStats := utils.GetNetworkStats()
 
-	for {
-		select {
-		case <-ticker.C:
-			pm := utils.GetPowerMetrics()
-			batt := utils.GetBatteryInfo()
-			netStats := utils.GetNetworkStats()
-
-			data := Stats{
-				TS:            time.Now().UnixMilli(),
-				CPU:           pm.CPU,
-				GPU:           pm.GPU,
-				Temp:          pm.Temp,
-				Disk:          utils.GetDiskUsage(),
-				RAM:           utils.GetRAMUsage(),
-				Battery:       batt.Percent,
-				BatteryStatus: batt.Status,
-				BatteryTime:   batt.Time,
-				Uptime:        utils.FormatDuration(utils.GetUptime()),
-			}
-
-			data.Network.RxSpeed = netStats.RxSpeedStr
-			data.Network.TxSpeed = netStats.TxSpeedStr
-			data.Network.RxTotal = netStats.RxTotalStr
-			data.Network.TxTotal = netStats.TxTotalStr
-
-			jsonData, _ := json.Marshal(data)
-			w.Write([]byte("data: " + string(jsonData) + "\n\n"))
-			flusher.Flush()
-
-		case <-r.Context().Done():
-			return
-		}
+	data := Stats{
+		TS:            time.Now().UnixMilli(),
+		CPU:           pm.CPU,
+		GPU:           pm.GPU,
+		Temp:          pm.Temp,
+		Disk:          utils.GetDiskUsage(),
+		RAM:           utils.GetRAMUsage(),
+		Battery:       batt.Percent,
+		BatteryStatus: batt.Status,
+		BatteryTime:   batt.Time,
+		Uptime:        utils.FormatDuration(utils.GetUptime()),
 	}
+
+	data.Network.RxSpeed = netStats.RxSpeedStr
+	data.Network.TxSpeed = netStats.TxSpeedStr
+	data.Network.RxTotal = netStats.RxTotalStr
+	data.Network.TxTotal = netStats.TxTotalStr
+
+	// Kirim JSON murni
+	json.NewEncoder(w).Encode(data)
 }
