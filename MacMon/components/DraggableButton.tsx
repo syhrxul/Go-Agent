@@ -10,14 +10,17 @@ const MARGIN_TEPI = 20;
 const MARGIN_ATAS = 40;
 const MARGIN_BAWAH = 40;
 
-// --- KONFIGURASI KONEKSI ---
-// OPSI 1: KABEL DATA (USB) - Paling Stabil & Cepat
-// Karena Anda sudah menjalankan 'adb reverse tcp:8080 tcp:8080', gunakan 'localhost'.
-const API_URL = 'http://localhost:8080/stats-json'; 
+// --- CONFIG AUTO SWITCH ---
+const WIFI_IP = '192.168.0.198'; // Pastikan ini sesuai IP Mac saat ini
+const PORT = '8080';
+const ENDPOINT = '/stats-json';
 
-// OPSI 2: WI-FI (Tanpa Kabel)
-// Jika kabel dicabut, ganti baris di atas menjadi:
-// const API_URL = 'http://192.168.0.198:8080/stats-json';
+// Daftar URL yang akan dicoba otomatis
+const URL_LIST = [
+  `http://localhost:${PORT}${ENDPOINT}`,       // Prioritas 1: USB (adb reverse)
+  `http://${WIFI_IP}:${PORT}${ENDPOINT}`,      // Prioritas 2: Wi-Fi
+];
+
 interface SystemStats {
   ts: number;
   cpu: number;
@@ -41,6 +44,9 @@ export default function DraggableButton() {
   const [stats, setStats] = useState<SystemStats | null>(null);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  
+  // Ref untuk menyimpan URL mana yang sedang aktif (agar tidak scan ulang tiap detik)
+  const activeUrlRef = useRef(URL_LIST[0]); 
 
   const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
   const pan = useRef(new Animated.ValueXY({ x: MARGIN_TEPI, y: 100 })).current;
@@ -55,41 +61,54 @@ export default function DraggableButton() {
     let isMounted = true;
 
     const fetchData = async () => {
+      let success = false;
+
+      // 1. Coba fetch pakai URL yang terakhir berhasil (Fast Path)
       try {
-        // Timeout 2 detik agar tidak hang jika koneksi putus
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 2000);
-
-        const response = await fetch(API_URL, {
-          signal: controller.signal,
-          headers: { 'Cache-Control': 'no-cache' }
-        });
-        
-        clearTimeout(timeoutId);
-
-        if (!response.ok) throw new Error("Server error");
-        
-        const json = await response.json();
-        
+        const data = await fetchWithTimeout(activeUrlRef.current, 1000); // Timeout 1 detik
         if (isMounted) {
-          setStats(json);
-          setLoading(false);
+          setStats(data);
           setErrorMsg(null);
+          success = true;
         }
-      } catch (error) {
-        if (isMounted) {
-          // Jika error, kita biarkan stats terakhir (jika ada) atau tampilkan error
-          // Tidak perlu setStats(null) agar data tidak berkedip hilang
-          setErrorMsg("Connecting...");
-          setLoading(false);
+      } catch (e) {
+        // Jika gagal, jangan lakukan apa-apa, lanjut ke scanning
+      }
+
+      // 2. Jika URL terakhir gagal, coba scan semua URL di list (Auto Switch)
+      if (!success) {
+        for (const url of URL_LIST) {
+          // Skip URL yang barusan kita coba dan gagal
+          if (url === activeUrlRef.current) continue; 
+
+          try {
+            // Timeout pendek (500ms) saat scanning agar UI tidak lag
+            const data = await fetchWithTimeout(url, 500); 
+            if (isMounted) {
+              setStats(data);
+              setErrorMsg(null);
+              activeUrlRef.current = url; // Simpan URL ini sebagai yang aktif
+              success = true;
+              break; // Berhenti looping jika sudah ketemu yang sukses
+            }
+          } catch (e) {
+            // Lanjut ke URL berikutnya
+          }
         }
+      }
+
+      if (isMounted) {
+        if (!success) {
+          setErrorMsg("Mencari Koneksi...");
+        }
+        setLoading(false);
       }
     };
 
     if (modalVisible) {
       setLoading(true);
-      fetchData(); // Panggil langsung
-      intervalId = setInterval(fetchData, 1000); // Update tiap 1 detik
+      fetchData(); // Panggil langsung pertama kali
+      intervalId = setInterval(fetchData, 1000); // Ulangi tiap 1 detik
     }
 
     return () => {
@@ -98,7 +117,8 @@ export default function DraggableButton() {
     };
   }, [modalVisible]);
 
-  // --- Animasi & Pan Responder ---
+  // ... (Sisa kode Animasi, PanResponder, Render UI SAMA PERSIS) ...
+
   const openModal = () => {
     setModalVisible(true);
     const buttonCenterX = val.current.x + BUTTON_SIZE / 2;
@@ -156,9 +176,11 @@ export default function DraggableButton() {
                <ActivityIndicator size="large" color="#007AFF" style={{marginBottom: 20}} />
             ) : stats ? (
               <View style={styles.statsContainer}>
-                {/* Indikator Status */}
+                {/* Indikator URL yang Dipakai */}
                 <View style={[styles.statusBadge, { backgroundColor: errorMsg ? '#FF3B30' : '#34C759' }]}>
-                  <Text style={styles.statusText}>{errorMsg ? 'RECONNECTING' : 'LIVE'}</Text>
+                  <Text style={styles.statusText}>
+                    {errorMsg ? 'RECONNECTING' : activeUrlRef.current.includes('localhost') ? 'USB (LOCAL)' : 'WI-FI'}
+                  </Text>
                 </View>
 
                 {/* TAMPILAN DATA */}
@@ -178,8 +200,8 @@ export default function DraggableButton() {
               </View>
             ) : (
                 <Text style={styles.errorText}>
-                    Menunggu data dari {API_URL}...{"\n"}
-                    Pastikan Kabel Terhubung & Server Jalan.
+                    {errorMsg || "Menunggu data..."}{"\n"}
+                    Cek Kabel atau Wi-Fi.
                 </Text>
             )}
 
@@ -194,6 +216,25 @@ export default function DraggableButton() {
   );
 }
 
+// --- HELPER FETCH DENGAN TIMEOUT ---
+async function fetchWithTimeout(url: string, timeout = 2000) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
+  try {
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: { 'Cache-Control': 'no-cache' }
+    });
+    clearTimeout(id);
+    if (!response.ok) throw new Error("Server error");
+    return await response.json();
+  } catch (error) {
+    clearTimeout(id);
+    throw error;
+  }
+}
+
+// ... (Komponen StatRow dan Styles tetap sama, tidak perlu diubah) ...
 function StatRow({ label, value, icon }: { label: string, value: string | number, icon: any }) {
   return (
     <View style={styles.statRow}>
