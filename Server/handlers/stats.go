@@ -47,8 +47,6 @@ func StatsHandler(w http.ResponseWriter, r *http.Request) {
 			batt := utils.GetBatteryInfo()
 			netStats := utils.GetNetworkStats()
 
-			// Logika ambil Top Processes DIHAPUS dari sini
-
 			data := Stats{
 				TS:            time.Now().UnixMilli(),
 				CPU:           pm.CPU,

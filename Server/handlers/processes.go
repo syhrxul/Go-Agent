@@ -9,16 +9,13 @@ import (
 	"Agent/utils"
 )
 
-// ListProcessesHandler mengembalikan daftar proses dalam format JSON biasa (Bukan SSE)
 func ListProcessesHandler(w http.ResponseWriter, r *http.Request) {
-	// Ambil 10 proses teratas (bisa lebih banyak karena endpoint ini terpisah)
+
 	processes := utils.GetTopProcesses(10)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(processes)
 }
-
-// KillProcessHandler untuk mematikan proses
 func KillProcessHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)

@@ -22,12 +22,10 @@ func nowUnix() int64 {
 	return v
 }
 
-// FormatDuration mengubah detik (int64) menjadi string "HH:MM:SS"
 func FormatDuration(seconds int64) string {
 	hours := seconds / 3600
 	minutes := (seconds % 3600) / 60
 	secs := seconds % 60
 
-	// Format %02d artinya angka akan selalu 2 digit (misal: 01, 05, 12)
 	return fmt.Sprintf("%02d:%02d:%02d", hours, minutes, secs)
 }

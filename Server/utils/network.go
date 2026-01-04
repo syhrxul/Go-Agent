@@ -10,10 +10,10 @@ import (
 )
 
 type NetworkStats struct {
-	RxSpeedStr string // Contoh: "1.5 MB/s"
-	TxSpeedStr string // Contoh: "20 KB/s"
-	RxTotalStr string // Contoh: "5.2 GB"
-	TxTotalStr string // Contoh: "100 MB"
+	RxSpeedStr string
+	TxSpeedStr string
+	RxTotalStr string
+	TxTotalStr string
 }
 
 var (
@@ -23,7 +23,6 @@ var (
 	netMutex  sync.Mutex
 )
 
-// Helper untuk mengubah bytes ke format KB/MB/GB
 func formatBytes(bytes uint64) string {
 	const unit = 1024
 	if bytes < unit {
@@ -34,7 +33,7 @@ func formatBytes(bytes uint64) string {
 		div *= unit
 		exp++
 	}
-	// %.2f artinya 2 angka di belakang koma
+
 	return fmt.Sprintf("%.2f %cB", float64(bytes)/float64(div), "KMGTPE"[exp])
 }
 
@@ -42,7 +41,6 @@ func GetNetworkStats() NetworkStats {
 	netMutex.Lock()
 	defer netMutex.Unlock()
 
-	// Ambil data dari netstat (bytes in & bytes out)
 	out, err := exec.Command("sh", "-c",
 		`netstat -b -I en0 | awk 'NR==2 {print $7, $10}'`,
 	).Output()
@@ -63,24 +61,20 @@ func GetNetworkStats() NetworkStats {
 	rxSpeedStr := "0 B/s"
 	txSpeedStr := "0 B/s"
 
-	// Hitung kecepatan jika bukan pertama kali jalan
 	if !lastCheck.IsZero() {
 		duration := now.Sub(lastCheck).Seconds()
 		if duration > 0 {
 			diffRx := currentRx - lastRx
 			diffTx := currentTx - lastTx
 
-			// Hitung kecepatan (Bytes per second)
 			rxSpeed := float64(diffRx) / duration
 			txSpeed := float64(diffTx) / duration
 
-			// Format kecepatan lalu tambahkan "/s"
 			rxSpeedStr = formatBytes(uint64(rxSpeed)) + "/s"
 			txSpeedStr = formatBytes(uint64(txSpeed)) + "/s"
 		}
 	}
 
-	// Update state
 	lastRx = currentRx
 	lastTx = currentTx
 	lastCheck = now
@@ -88,7 +82,7 @@ func GetNetworkStats() NetworkStats {
 	return NetworkStats{
 		RxSpeedStr: rxSpeedStr,
 		TxSpeedStr: txSpeedStr,
-		RxTotalStr: formatBytes(currentRx), // Total download terformat
-		TxTotalStr: formatBytes(currentTx), // Total upload terformat
+		RxTotalStr: formatBytes(currentRx),
+		TxTotalStr: formatBytes(currentTx),
 	}
 }

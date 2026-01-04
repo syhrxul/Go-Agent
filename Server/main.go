@@ -11,13 +11,8 @@ import (
 func main() {
 	utils.StartMetricsCollector()
 
-	// 1. Endpoint Stats (SSE - Realtime 1 detik)
 	http.HandleFunc("/stats", handlers.StatsHandler)
-
-	// 2. Endpoint Processes (JSON Biasa - Request on demand)
 	http.HandleFunc("/processes", handlers.ListProcessesHandler)
-
-	// 3. Endpoint Action (Kill)
 	http.HandleFunc("/kill", handlers.KillProcessHandler)
 
 	log.Println("Mac Monitor Agent running on :8080")
