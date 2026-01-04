@@ -15,7 +15,7 @@ func GetPowerMetrics() PowerMetrics {
 	cacheLock.Lock()
 	defer cacheLock.Unlock()
 
-	if time.Since(lastRead) > 5*time.Second {
+	if time.Since(lastRead) > 1*time.Second {
 		cache = readPowerMetrics()
 		lastRead = time.Now()
 	}
