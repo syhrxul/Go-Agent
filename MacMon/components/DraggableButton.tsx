@@ -1,4 +1,3 @@
-// components/DraggableButton.tsx
 import React, { useRef, useState, useEffect } from 'react';
 import { 
   View, Text, StyleSheet, PanResponder, Animated, TouchableOpacity, 
@@ -8,7 +7,6 @@ import { FontAwesome } from '@expo/vector-icons';
 import { useSplitScreen } from '@/context/SplitContext'; 
 import { SystemStats } from './types';
 
-// Import Komponen Baru Kita
 import MonitorPanel from './MonitorPanel';
 import ProcessPanel from './ProcessPanel';
 
@@ -26,7 +24,6 @@ const URL_LIST = [
   `http://${WIFI_IP}:${PORT}${ENDPOINT}`,     
 ];
 
-// Helper Fetch Sederhana
 async function fetchWithTimeout(url: string, timeout = 2000) {
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), timeout);
@@ -41,33 +38,27 @@ async function fetchWithTimeout(url: string, timeout = 2000) {
 export default function DraggableButton({ mode = 'floating' }: { mode?: 'floating' | 'split' }) {
   const { setSplitMode } = useSplitScreen();
   
-  // -- STATE DATA --
   const [stats, setStats] = useState<SystemStats | null>(null);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   
-  // -- STATE NAVIGASI --
   const [statsModalVisible, setStatsModalVisible] = useState(false); 
   const [activeTab, setActiveTab] = useState<'monitor' | 'processes'>('monitor'); 
 
-  // Logic Double Click
   const lastPress = useRef(0);
   const clickTimer = useRef<NodeJS.Timeout | null>(null);
   const activeUrlRef = useRef(URL_LIST[0]); 
 
-  // Animasi
   const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
   const pan = useRef(new Animated.ValueXY({ x: MARGIN_TEPI, y: 100 })).current;
   const val = useRef({ x: MARGIN_TEPI, y: 100 }); 
   pan.addListener((value) => (val.current = value));
   const modalScale = useRef(new Animated.Value(0)).current;
 
-  // --- FETCHING LOGIC (Hanya Fetch Stats di sini) ---
   useEffect(() => {
     let intervalId: NodeJS.Timeout;
     let isMounted = true;
     
-    // Fetch hanya jika: Modal Buka OR (Split Mode AND Tab Monitor Aktif)
     const shouldFetch = statsModalVisible || (mode === 'split' && activeTab === 'monitor');
 
     const fetchData = async () => {
@@ -98,27 +89,23 @@ export default function DraggableButton({ mode = 'floating' }: { mode?: 'floatin
     return () => { isMounted = false; if (intervalId) clearInterval(intervalId); };
   }, [statsModalVisible, mode, activeTab]);
 
-
-  // --- HANDLE CLICK ---
   const handlePress = () => {
     const now = Date.now();
     if (now - lastPress.current < 300) {
       if (clickTimer.current) clearTimeout(clickTimer.current);
-      setSplitMode(true); // Double Click -> Split Screen
+      setSplitMode(true); 
     } else {
       lastPress.current = now;
       clickTimer.current = setTimeout(() => {
-        setStatsModalVisible(true); // Single Click -> Modal
+        setStatsModalVisible(true); 
         Animated.spring(modalScale, { toValue: 1, useNativeDriver: true }).start();
       }, 300);
     }
   };
 
-  // ================= RENDER: SPLIT SCREEN =================
   if (mode === 'split') {
     return (
       <View style={styles.splitContainer}>
-        {/* HEADER & TABS */}
         <View style={styles.splitHeaderRow}>
             <View style={{flexDirection: 'row'}}>
                 <TabButton title="Monitor" active={activeTab === 'monitor'} onPress={() => setActiveTab('monitor')} />
@@ -129,7 +116,6 @@ export default function DraggableButton({ mode = 'floating' }: { mode?: 'floatin
             </TouchableOpacity>
         </View>
 
-        {/* CONTENT AREA (Menggunakan Komponen Terpisah) */}
         <View style={{flex: 1, marginTop: 5}}>
             {activeTab === 'monitor' ? (
                 <MonitorPanel stats={stats} loading={loading} errorMsg={errorMsg} />
@@ -141,7 +127,6 @@ export default function DraggableButton({ mode = 'floating' }: { mode?: 'floatin
     );
   }
 
-  // ================= RENDER: FLOATING BUTTON =================
   const panResponder = useRef(
     PanResponder.create({
       onMoveShouldSetPanResponder: (_, gestureState) => Math.abs(gestureState.dx) > 5 || Math.abs(gestureState.dy) > 5,
@@ -167,7 +152,6 @@ export default function DraggableButton({ mode = 'floating' }: { mode?: 'floatin
         </TouchableOpacity>
       </Animated.View>
 
-      {/* MODAL POPUP (Single Click) - Reuse MonitorPanel agar konsisten */}
       <Modal transparent={true} visible={statsModalVisible} onRequestClose={() => setStatsModalVisible(false)} animationType="none">
         <View style={styles.modalOverlay}>
           <Animated.View style={[styles.modalView, { transform: [{ scale: modalScale }] }]}>
@@ -185,7 +169,6 @@ export default function DraggableButton({ mode = 'floating' }: { mode?: 'floatin
   );
 }
 
-// Komponen Kecil untuk Tab
 function TabButton({title, active, onPress}: any) {
     return (
         <TouchableOpacity onPress={onPress} style={[styles.tabButton, active && styles.tabActive]}>
@@ -198,17 +181,14 @@ const styles = StyleSheet.create({
   absoluteContainer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999, pointerEvents: 'box-none' },
   floatingButton: { backgroundColor: '#007AFF', width: BUTTON_SIZE, height: BUTTON_SIZE, borderRadius: BUTTON_SIZE / 2, alignItems: 'center', justifyContent: 'center', elevation: 5 },
   
-  // Modal Styles
   modalOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)' },
   modalView: { width: 340, backgroundColor: '#f2f2f7', borderRadius: 20, padding: 15, alignItems: 'center', elevation: 5 },
   modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 10 },
 
-  // Split Screen Styles
   splitContainer: { width: '100%', height: '100%', backgroundColor: '#f2f2f7', borderBottomWidth: 1, borderColor: '#ccc', padding: 8, paddingTop: 10 },
   splitHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5, borderBottomWidth: 1, borderBottomColor: '#e5e5e5', paddingBottom: 5 },
   closeSplitButton: { backgroundColor: '#FF3B30', width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
 
-  // Tabs
   tabButton: { paddingVertical: 5, paddingHorizontal: 15, borderRadius: 15, backgroundColor: '#e0e0e0', marginRight: 8 },
   tabActive: { backgroundColor: '#007AFF' },
   tabText: { fontSize: 12, color: '#555', fontWeight: '600' },

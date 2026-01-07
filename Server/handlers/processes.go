@@ -10,12 +10,12 @@ import (
 )
 
 func ListProcessesHandler(w http.ResponseWriter, r *http.Request) {
-
-	processes := utils.GetTopProcesses(10)
+	processes := utils.GetTopProcesses(50)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(processes)
 }
+
 func KillProcessHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)

@@ -2,7 +2,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, ScrollView } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
-import { SystemStats } from './types'; // Import dari file types
+import { SystemStats } from './types'; 
 
 interface MonitorPanelProps {
   stats: SystemStats | null;
@@ -17,17 +17,15 @@ export default function MonitorPanel({ stats, loading, errorMsg }: MonitorPanelP
   return (
     <ScrollView style={styles.container}>
       <View style={styles.grid}>
-        {/* Baris 1: Resource Utama */}
+
         <StatCard label="CPU" value={`${stats.cpu}%`} icon="microchip" color="#FF3B30" />
         <StatCard label="RAM" value={`${stats.ram}%`} icon="memory" color="#007AFF" />
         <StatCard label="GPU" value={`${stats.gpu}%`} icon="tv" color="#5856D6" />
         
-        {/* Baris 2: Storage & Temp */}
         <StatCard label="Disk" value={`${stats.disk}%`} icon="hdd-o" color="#FF9500" />
         <StatCard label="Temp" value={`${stats.temp}°C`} icon="thermometer" color="#FF2D55" />
         <StatCard label="Uptime" value={stats.uptime} icon="clock-o" color="#8E8E93" isSmallFont />
 
-        {/* Baris 3: Baterai Lengkap */}
         <View style={styles.fullRow}>
             <Text style={styles.sectionTitle}>Battery</Text>
         </View>
@@ -35,7 +33,6 @@ export default function MonitorPanel({ stats, loading, errorMsg }: MonitorPanelP
         <StatCard label="Status" value={stats.battery_status} icon="bolt" color="#FFCC00" isSmallFont />
         <StatCard label="Time" value={stats.battery_time} icon="hourglass-half" color="#8E8E93" isSmallFont />
 
-        {/* Baris 4: Network Lengkap */}
         <View style={styles.fullRow}>
             <Text style={styles.sectionTitle}>Network</Text>
         </View>
@@ -49,7 +46,6 @@ export default function MonitorPanel({ stats, loading, errorMsg }: MonitorPanelP
   );
 }
 
-// Komponen Kecil untuk Kartu Statistik
 function StatCard({ label, value, icon, color, isSmallFont }: any) {
   return (
     <View style={styles.card}>

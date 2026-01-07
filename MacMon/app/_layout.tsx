@@ -46,19 +46,14 @@ function RootLayoutNav() {
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <StatusBar hidden={true} />
       
-      {/* Ubah flexDirection jadi 'row' untuk Kiri-Kanan */}
       <View style={{ flex: 1, flexDirection: 'row' }}>
         
-        {/* BAGIAN KIRI: Panel Statistik (Muncul jika isSplitMode aktif) */}
         {isSplitMode && (
            <View style={{ flex: 0.25, borderRightWidth: 1, borderColor: '#ccc' }}> 
-              {/* Mode split akan merender sidebar vertikal */}
               <DraggableButton mode="split" />
            </View>
         )}
 
-        {/* BAGIAN KANAN: Aplikasi Utama */}
-        {/* Mengambil sisa ruang (0.75 atau 1) */}
         <View style={{ flex: isSplitMode ? 0.75 : 1 }}>
             <Stack>
               <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -66,7 +61,6 @@ function RootLayoutNav() {
             </Stack>
         </View>
 
-        {/* Tombol Melayang (Hanya muncul jika TIDAK split mode) */}
         {!isSplitMode && (
             <DraggableButton mode="floating" />
         )}

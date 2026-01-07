@@ -1,17 +1,16 @@
-// components/ProcessPanel.tsx
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { FontAwesome } from '@expo/vector-icons';
 import { Process } from './types';
 
 interface ProcessPanelProps {
-  activeUrl: string; // Panel ini butuh URL aktif untuk fetch/kill
+  activeUrl: string; 
 }
 
 export default function ProcessPanel({ activeUrl }: ProcessPanelProps) {
   const [processList, setProcessList] = useState<Process[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Helper Fetch
   const fetchWithTimeout = async (url: string) => {
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), 2000);
@@ -25,7 +24,6 @@ export default function ProcessPanel({ activeUrl }: ProcessPanelProps) {
   const loadProcesses = async () => {
     setLoading(true);
     try {
-      // Hapus endpoint stats, ganti dengan processes
       const baseUrl = activeUrl.replace('/stats-json', ''); 
       const data = await fetchWithTimeout(`${baseUrl}/processes`);
       setProcessList(data || []);
@@ -36,53 +34,85 @@ export default function ProcessPanel({ activeUrl }: ProcessPanelProps) {
     }
   };
 
-  const killProcess = (pid: number, name: string) => {
-    Alert.alert("Kill Process", `Matikan "${name}" (PID: ${pid})?`, [
+  const killProcess = (pid: number, name: string, category: string) => {
+    const isSystem = category === 'System';
+    const warningText = isSystem 
+        ? "⚠️ PERINGATAN: Ini adalah proses sistem/kernel. Mematikannya bisa membuat Mac crash atau restart.\n\nYakin ingin memaksa berhenti?" 
+        : `Paksa berhenti aplikasi "${name}"?`;
+
+    Alert.alert(isSystem ? "Force Quit System Process" : "Force Quit App", warningText, [
         { text: "Batal", style: "cancel" },
-        { text: "KILL", style: 'destructive', onPress: async () => {
+        { text: isSystem ? "KILL (RISKY)" : "FORCE QUIT", style: 'destructive', onPress: async () => {
             try {
                 const baseUrl = activeUrl.replace('/stats-json', '');
                 await fetch(`${baseUrl}/kill?pid=${pid}`, { method: 'POST' });
-                loadProcesses(); // Refresh setelah kill
+                loadProcesses(); 
             } catch (e) { Alert.alert("Gagal mematikan proses."); }
         }}
     ]);
   };
 
-  // Auto load saat pertama kali dibuka
   useEffect(() => {
     loadProcesses();
-    const interval = setInterval(loadProcesses, 5000); // Auto refresh tiap 5 detik
+    const interval = setInterval(loadProcesses, 10000);
     return () => clearInterval(interval);
   }, [activeUrl]);
+
+  // Filter Data untuk View
+  const systemApps = processList.filter(p => p.category === 'System');
+  const userApps = processList.filter(p => p.category !== 'System');
+
+  const renderRow = (proc: Process, isSystem: boolean) => (
+    <View key={proc.pid} style={[styles.row, isSystem && styles.rowSystem]}>
+        <View style={styles.iconContainer}>
+            <FontAwesome 
+                name={isSystem ? "cog" : "window-maximize"} 
+                size={14} 
+                color={isSystem ? "#8E8E93" : "#007AFF"} 
+            />
+        </View>
+        <View style={{flex: 1}}>
+            <Text style={[styles.name, isSystem && {color:'#555'}]} numberOfLines={1}>{proc.name}</Text>
+            <Text style={styles.pid}>PID: {proc.pid} • CPU: {proc.cpu}%</Text>
+        </View>
+        <TouchableOpacity 
+            style={[styles.killBtn, isSystem && {backgroundColor: '#ccc'}]} 
+            onPress={() => killProcess(proc.pid, proc.name, proc.category)}>
+            <Text style={styles.killText}>{isSystem ? "KILL" : "QUIT"}</Text>
+        </TouchableOpacity>
+    </View>
+  );
 
   return (
     <View style={styles.container}>
         <View style={styles.header}>
-            <Text style={styles.title}>Top Processes</Text>
+            <Text style={styles.title}>Process Manager</Text>
             <TouchableOpacity onPress={loadProcesses}>
-                <Text style={{color:'#007AFF', fontSize:12}}>Refresh</Text>
+                <FontAwesome name="refresh" size={14} color="#007AFF" />
             </TouchableOpacity>
         </View>
 
-        {loading && processList.length === 0 ? <ActivityIndicator size="small" /> : (
+        {loading && processList.length === 0 ? <ActivityIndicator size="small" style={{marginTop:20}} /> : (
             <ScrollView nestedScrollEnabled={true}>
-                {processList.map((proc) => (
-                    <View key={proc.pid} style={styles.row}>
-                        <View style={{flex: 1}}>
-                            <Text style={styles.name} numberOfLines={1}>{proc.name}</Text>
-                            <Text style={styles.pid}>PID: {proc.pid}</Text>
-                        </View>
-                        <View style={{marginRight: 10, alignItems:'flex-end'}}>
-                             <Text style={styles.stat}>CPU: {proc.cpu}%</Text>
-                             <Text style={styles.stat}>RAM: {proc.ram.toFixed(1)}%</Text>
-                        </View>
-                        <TouchableOpacity style={styles.killBtn} onPress={() => killProcess(proc.pid, proc.name)}>
-                            <Text style={styles.killText}>KILL</Text>
-                        </TouchableOpacity>
-                    </View>
-                ))}
-                <View style={{height: 20}} /> 
+                
+
+                <View style={styles.sectionHeader}>
+                    <Text style={styles.sectionTitle}>SYSTEM / KERNEL</Text>
+                    <View style={styles.badge}><Text style={styles.badgeText}>{systemApps.length}</Text></View>
+                </View>
+                {systemApps.map(p => renderRow(p, true))}
+
+                <View style={{height: 10}} />
+
+                <View style={styles.sectionHeader}>
+                    <Text style={styles.sectionTitle}>USER APPLICATIONS</Text>
+                    <View style={[styles.badge, {backgroundColor:'#007AFF'}]}><Text style={styles.badgeText}>{userApps.length}</Text></View>
+                </View>
+                {userApps.length > 0 ? userApps.map(p => renderRow(p, false)) : (
+                    <Text style={styles.emptyText}>Tidak ada aplikasi berat.</Text>
+                )}
+                
+                <View style={{height: 40}} /> 
             </ScrollView>
         )}
     </View>
@@ -91,12 +121,20 @@ export default function ProcessPanel({ activeUrl }: ProcessPanelProps) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { flexDirection:'row', justifyContent:'space-between', alignItems:'center', paddingHorizontal: 5, marginBottom: 5},
-  title: { fontWeight: 'bold', fontSize: 12, color: '#666' },
-  row: { flexDirection: 'row', backgroundColor: 'white', padding: 8, borderRadius: 8, marginBottom: 4, alignItems: 'center', elevation:1 },
-  name: { fontWeight: 'bold', fontSize: 12, color: '#333' },
-  pid: { fontSize: 10, color: '#888' },
-  stat: { fontSize: 10, color: '#555' },
-  killBtn: { backgroundColor: '#FF3B30', paddingVertical: 5, paddingHorizontal: 10, borderRadius: 5 },
-  killText: { color: 'white', fontWeight: 'bold', fontSize: 10 },
+  header: { flexDirection:'row', justifyContent:'space-between', alignItems:'center', paddingHorizontal: 5, marginBottom: 10, marginTop: 5},
+  title: { fontWeight: 'bold', fontSize: 14, color: '#333' },
+  
+  sectionHeader: { flexDirection:'row', alignItems:'center', marginBottom: 5, marginTop: 5, paddingHorizontal: 5 },
+  sectionTitle: { fontSize: 10, fontWeight: 'bold', color: '#888', marginRight: 5 },
+  badge: { backgroundColor: '#8E8E93', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 10 },
+  badgeText: { color: 'white', fontSize: 9, fontWeight: 'bold' },
+
+  row: { flexDirection: 'row', backgroundColor: 'white', padding: 10, borderRadius: 10, marginBottom: 6, alignItems: 'center', shadowColor:'#000', shadowOpacity:0.05, shadowRadius:2, elevation:1 },
+  rowSystem: { backgroundColor: '#f9f9f9', opacity: 0.9 }, 
+  iconContainer: { width: 30, alignItems: 'center', justifyContent:'center', marginRight: 5 },
+  name: { fontWeight: 'bold', fontSize: 13, color: '#000' },
+  pid: { fontSize: 11, color: '#666', marginTop: 2 },
+  killBtn: { backgroundColor: '#FF3B30', paddingVertical: 6, paddingHorizontal: 10, borderRadius: 6 },
+  killText: { color: 'white', fontWeight: 'bold', fontSize: 9 },
+  emptyText: { textAlign: 'center', color: '#999', fontSize: 12, marginVertical: 10 },
 });
