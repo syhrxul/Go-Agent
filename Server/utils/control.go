@@ -5,23 +5,24 @@ import (
 	"os/exec"
 )
 
-// Helper: Gunakan full path /usr/bin/osascript dan print output
+// Helper: jalankan osascript dengan full path
 func runOsa(script string) error {
-	// Ganti "osascript" dengan "/usr/bin/osascript" agar lebih pasti
 	cmd := exec.Command("/usr/bin/osascript", "-e", script)
-
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		fmt.Printf("❌ GAGAL: %s\nOutput: %s\n", script, string(output))
-		return fmt.Errorf("error: %s", string(output))
+		return fmt.Errorf("osascript error: %s", string(output))
 	}
-
-	fmt.Printf("✅ SUKSES: %s\n", script)
 	return nil
 }
 
+/* =====================
+   🔊 VOLUME CONTROL
+===================== */
+
 func ControlVolume(action string, value int) error {
 	var script string
+
 	switch action {
 	case "up":
 		script = "set volume output volume ((output volume of (get volume settings)) + 10)"
@@ -32,12 +33,16 @@ func ControlVolume(action string, value int) error {
 	case "set":
 		script = fmt.Sprintf("set volume output volume %d", value)
 	}
+
 	return runOsa(script)
 }
 
+/* =====================
+   ☀️ BRIGHTNESS CONTROL
+===================== */
+
 func ControlBrightness(action string) error {
-	// Menggunakan key code 144 (tambah) dan 145 (kurang)
-	keyCode := 145
+	keyCode := 145 // brightness down
 	if action == "up" {
 		keyCode = 144
 	}
@@ -49,33 +54,45 @@ func ControlBrightness(action string) error {
 			end repeat
 		end tell
 	`, keyCode)
+
 	return runOsa(script)
 }
 
+/* =====================
+   🚀 OPEN APPLICATION
+===================== */
+
 func OpenApp(appName string) error {
-	// Gunakan full path /usr/bin/open
 	cmd := exec.Command("/usr/bin/open", "-a", appName)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		fmt.Printf("❌ Gagal Buka App: %s\n", string(output))
-		return err
-	}
-	return nil
+	return cmd.Run()
 }
 
+/* =====================
+   🎵 MEDIA KEY CONTROL (FIXED)
+===================== */
+
 func SendMediaKey(key string) error {
-	var script string
+	var keyCode int
+
 	switch key {
 	case "playpause":
-		script = "tell application \"System Events\" to key code 100"
+		keyCode = 20
 	case "next":
-		script = "tell application \"System Events\" to key code 101"
+		keyCode = 19
 	case "prev":
-		script = "tell application \"System Events\" to key code 98"
+		keyCode = 18
+	default:
+		return nil
 	}
 
-	if script != "" {
-		return runOsa(script)
-	}
-	return nil
+	// NSEvent media key (INI YANG BENAR)
+	script := fmt.Sprintf(`
+		tell application "System Events"
+			key down (key code %d)
+			delay 0.05
+			key up (key code %d)
+		end tell
+	`, keyCode, keyCode)
+
+	return runOsa(script)
 }

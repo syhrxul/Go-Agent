@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { StyleSheet, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Vibration, Dimensions } from 'react-native';
+import { StyleSheet, TouchableOpacity, TextInput, Vibration } from 'react-native';
 import { Text, View } from '@/components/Themed';
-import { FontAwesome, Ionicons, MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 
-// IP Address Mac Anda
+// GANTI DENGAN IP MAC ANDA
 const API_URL = 'http://192.168.0.198:8080/api/control';
 
 // Palet Warna Konsisten (White Theme)
@@ -28,7 +28,7 @@ export default function FAMScreen() {
 
   // Fungsi Kirim Perintah
   const sendCommand = async (type: string, action: string, value?: number, name?: string) => {
-    Vibration.vibrate(15); // Haptic feedback
+    Vibration.vibrate(15); 
     setLoading(true);
 
     try {
@@ -76,7 +76,6 @@ export default function FAMScreen() {
             
             {/* 1. VOLUME & BRIGHTNESS CARD */}
             <View style={styles.controlCard}>
-                
                 {/* Volume Row */}
                 <View style={styles.controlRow}>
                     <View style={styles.labelContainer}>
@@ -85,7 +84,6 @@ export default function FAMScreen() {
                         </View>
                         <Text style={styles.labelText}>Volume</Text>
                     </View>
-                    
                     <View style={styles.buttonGroup}>
                         <ControlButton icon="volume-mute" onPress={() => sendCommand('volume', 'mute')} color={Colors.danger} />
                         <ControlButton icon="remove" onPress={() => sendCommand('volume', 'down')} />
@@ -103,29 +101,47 @@ export default function FAMScreen() {
                         </View>
                         <Text style={styles.labelText}>Brightness</Text>
                     </View>
-                    
                     <View style={styles.buttonGroup}>
                         <ControlButton icon="remove" onPress={() => sendCommand('brightness', 'down')} />
                         <ControlButton icon="add" onPress={() => sendCommand('brightness', 'up')} isPrimary />
                     </View>
                 </View>
-
             </View>
 
-            {/* 2. MEDIA PLAYER CARD */}
-            <View style={[styles.controlCard, {flex: 1, justifyContent: 'center'}]}>
-                <Text style={styles.cardTitle}>Media Playback</Text>
+            {/* 2. MEDIA PLAYER CARD (UPDATED DESIGN) */}
+            <View style={[styles.controlCard, styles.mediaCardContainer]}>
+                {/* Header: Art & Info */}
+                <View style={styles.mediaHeader}>
+                   <View style={styles.albumArt}>
+                      <Ionicons name="musical-notes" size={28} color="white" />
+                   </View>
+                   <View>
+                      <Text style={styles.trackTitle}>System Audio</Text>
+                      <Text style={styles.trackArtist}>Connected to MacBook</Text>
+                   </View>
+                </View>
+
+                {/* Progress Bar (Visual Only) */}
+                <View style={styles.progressContainer}>
+                   <View style={styles.progressBar} />
+                   <View style={styles.timeRow}>
+                      <Text style={styles.timeText}>--:--</Text>
+                      <Text style={styles.timeText}>--:--</Text>
+                   </View>
+                </View>
+                
+                {/* Controls */}
                 <View style={styles.mediaRow}>
-                    <TouchableOpacity style={styles.mediaBtnSmall} onPress={() => sendCommand('media', 'prev')}>
-                        <Ionicons name="play-skip-back" size={24} color={Colors.textSecondary} />
+                    <TouchableOpacity style={styles.mediaIconBtn} onPress={() => sendCommand('media', 'prev')}>
+                        <Ionicons name="play-skip-back" size={26} color={Colors.textPrimary} />
                     </TouchableOpacity>
                     
-                    <TouchableOpacity style={styles.mediaBtnLarge} onPress={() => sendCommand('media', 'playpause')}>
-                        <Ionicons name="play" size={36} color="white" style={{marginLeft: 4}} />
+                    <TouchableOpacity style={styles.playPauseBtn} onPress={() => sendCommand('media', 'playpause')}>
+                        <Ionicons name="play" size={32} color="white" style={{marginLeft: 4}} />
                     </TouchableOpacity>
                     
-                    <TouchableOpacity style={styles.mediaBtnSmall} onPress={() => sendCommand('media', 'next')}>
-                        <Ionicons name="play-skip-forward" size={24} color={Colors.textSecondary} />
+                    <TouchableOpacity style={styles.mediaIconBtn} onPress={() => sendCommand('media', 'next')}>
+                        <Ionicons name="play-skip-forward" size={26} color={Colors.textPrimary} />
                     </TouchableOpacity>
                 </View>
             </View>
@@ -170,7 +186,6 @@ export default function FAMScreen() {
             </View>
 
         </View>
-
       </View>
     </SafeAreaView>
   );
@@ -183,7 +198,7 @@ const ControlButton = ({ icon, onPress, isPrimary, color }: any) => (
         style={[
             styles.ctrlBtn, 
             isPrimary && { backgroundColor: Colors.primary },
-            color && { backgroundColor: color + '20' } // Transparent bg if color prop exists
+            color && { backgroundColor: color + '20' } 
         ]} 
         onPress={onPress}
     >
@@ -252,19 +267,52 @@ const styles = StyleSheet.create({
   },
   divider: { height: 1, backgroundColor: Colors.border, marginVertical: 16 },
 
-  // Media
-  cardTitle: { fontSize: 14, fontWeight: '600', color: Colors.textSecondary, marginBottom: 20, textAlign: 'center' },
-  mediaRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 32 },
-  mediaBtnSmall: {
-      width: 50, height: 50, borderRadius: 25,
-      backgroundColor: Colors.background,
-      justifyContent: 'center', alignItems: 'center',
+  // MEDIA PLAYER STYLES (NEW)
+  mediaCardContainer: {
+    flex: 1,
+    justifyContent: 'space-between', 
   },
-  mediaBtnLarge: {
-      width: 72, height: 72, borderRadius: 36,
-      backgroundColor: Colors.primary,
-      justifyContent: 'center', alignItems: 'center',
-      shadowColor: Colors.primary, shadowOpacity: 0.3, shadowRadius: 12, elevation: 8,
+  mediaHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    marginBottom: 10,
+  },
+  albumArt: {
+    width: 56,
+    height: 56,
+    borderRadius: 14,
+    backgroundColor: Colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  trackTitle: { fontSize: 16, fontWeight: '700', color: Colors.textPrimary, marginBottom: 2 },
+  trackArtist: { fontSize: 12, color: Colors.textSecondary, fontWeight: '500' },
+  
+  // Progress Bar
+  progressContainer: { width: '100%', marginVertical: 10 },
+  progressBar: { height: 4, backgroundColor: Colors.border, borderRadius: 2, width: '100%', overflow: 'hidden', marginBottom: 4 },
+  timeRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  timeText: { fontSize: 10, color: Colors.textSecondary },
+
+  // Media Controls
+  mediaRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+  },
+  mediaIconBtn: { padding: 10 },
+  playPauseBtn: {
+    width: 64, height: 64, borderRadius: 32,
+    backgroundColor: Colors.textPrimary,
+    justifyContent: 'center', alignItems: 'center',
+    shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 4,
   },
 
   // Apps
@@ -280,9 +328,7 @@ const styles = StyleSheet.create({
   appText: { fontSize: 12, fontWeight: '500', color: Colors.textPrimary },
 
   // Input
-  inputContainer: {
-      flexDirection: 'row', marginTop: 'auto', gap: 10,
-  },
+  inputContainer: { flexDirection: 'row', marginTop: 'auto', gap: 10 },
   inputWrapper: {
       flex: 1, flexDirection: 'row', alignItems: 'center',
       backgroundColor: Colors.background, borderRadius: 16, paddingHorizontal: 16,
