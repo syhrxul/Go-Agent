@@ -42,7 +42,7 @@ export default function TabOneScreen() {
         
         {/* HEADER & JAM */}
         <View style={styles.headerSection}>
-          <Text style={styles.greetingText}>Halo, User 👋</Text>
+          <Text style={styles.greetingText}>Halo, Alul 😸</Text>
           <Text style={styles.clockText}>
             {date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
           </Text>

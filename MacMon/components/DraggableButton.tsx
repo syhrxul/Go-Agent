@@ -7,23 +7,28 @@ import { FontAwesome } from '@expo/vector-icons';
 import { useSplitScreen } from '@/context/SplitContext'; 
 import { SystemStats } from './types';
 
+// Import komponen panel
 import MonitorPanel from './MonitorPanel';
 import ProcessPanel from './ProcessPanel';
+import PowerPanel from './PowerPanel'; // <--- Import PowerPanel
 
 const BUTTON_SIZE = 60; 
 const MARGIN_TEPI = 20;
 const MARGIN_ATAS = 40;
 const MARGIN_BAWAH = 40;
 
+// Konfigurasi IP Default (Fallback)
 const WIFI_IP = '192.168.0.198'; 
 const PORT = '8080';
 const ENDPOINT = '/stats-json'; 
 
+// List URL untuk Auto-Discovery
 const URL_LIST = [
   `http://localhost:${PORT}${ENDPOINT}`,       
   `http://${WIFI_IP}:${PORT}${ENDPOINT}`,     
 ];
 
+// Helper fetch dengan timeout
 async function fetchWithTimeout(url: string, timeout = 2000) {
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), timeout);
@@ -38,36 +43,45 @@ async function fetchWithTimeout(url: string, timeout = 2000) {
 export default function DraggableButton({ mode = 'floating' }: { mode?: 'floating' | 'split' }) {
   const { setSplitMode } = useSplitScreen();
   
+  // State Data
   const [stats, setStats] = useState<SystemStats | null>(null);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   
+  // State UI
   const [statsModalVisible, setStatsModalVisible] = useState(false); 
-  const [activeTab, setActiveTab] = useState<'monitor' | 'processes'>('monitor'); 
+  const [activeTab, setActiveTab] = useState<'monitor' | 'processes' | 'power'>('monitor'); // <--- Tambah 'power'
 
+  // Refs
   const lastPress = useRef(0);
   const clickTimer = useRef<NodeJS.Timeout | null>(null);
-  const activeUrlRef = useRef(URL_LIST[0]); 
+  const activeUrlRef = useRef(URL_LIST[0]); // Menyimpan URL yang berhasil connect
 
+  // Animasi Draggable
   const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
   const pan = useRef(new Animated.ValueXY({ x: MARGIN_TEPI, y: 100 })).current;
   const val = useRef({ x: MARGIN_TEPI, y: 100 }); 
   pan.addListener((value) => (val.current = value));
   const modalScale = useRef(new Animated.Value(0)).current;
 
+  // Effect: Auto-Discovery & Polling Data
   useEffect(() => {
     let intervalId: NodeJS.Timeout;
     let isMounted = true;
     
+    // Fetch hanya jika Modal terbuka atau sedang dalam Split Mode (tab monitor)
     const shouldFetch = statsModalVisible || (mode === 'split' && activeTab === 'monitor');
 
     const fetchData = async () => {
       let success = false;
+      
+      // 1. Coba fetch ke URL terakhir yang sukses
       try {
         const data = await fetchWithTimeout(activeUrlRef.current, 1000);
         if (isMounted) { setStats(data); setErrorMsg(null); success = true; }
       } catch (e) {}
 
+      // 2. Jika gagal, coba loop semua URL di list (Auto-Discovery)
       if (!success) {
         for (const url of URL_LIST) {
           if (url === activeUrlRef.current) continue; 
@@ -89,12 +103,15 @@ export default function DraggableButton({ mode = 'floating' }: { mode?: 'floatin
     return () => { isMounted = false; if (intervalId) clearInterval(intervalId); };
   }, [statsModalVisible, mode, activeTab]);
 
+  // Handle Double Click (Split) vs Single Click (Modal)
   const handlePress = () => {
     const now = Date.now();
     if (now - lastPress.current < 300) {
+      // Double Tap -> Buka Split Screen
       if (clickTimer.current) clearTimeout(clickTimer.current);
       setSplitMode(true); 
     } else {
+      // Single Tap -> Buka Modal Quick Stats
       lastPress.current = now;
       clickTimer.current = setTimeout(() => {
         setStatsModalVisible(true); 
@@ -103,30 +120,38 @@ export default function DraggableButton({ mode = 'floating' }: { mode?: 'floatin
     }
   };
 
+  // --- RENDER SPLIT MODE ---
   if (mode === 'split') {
     return (
       <View style={styles.splitContainer}>
+        {/* Header Tab & Close Button */}
         <View style={styles.splitHeaderRow}>
             <View style={{flexDirection: 'row'}}>
                 <TabButton title="Monitor" active={activeTab === 'monitor'} onPress={() => setActiveTab('monitor')} />
                 <TabButton title="Processes" active={activeTab === 'processes'} onPress={() => setActiveTab('processes')} />
+                <TabButton title="Power" active={activeTab === 'power'} onPress={() => setActiveTab('power')} /> 
             </View>
             <TouchableOpacity onPress={() => setSplitMode(false)} style={styles.closeSplitButton}>
                 <FontAwesome name="times" size={14} color="white" />
             </TouchableOpacity>
         </View>
 
+        {/* Content Area */}
         <View style={{flex: 1, marginTop: 5}}>
             {activeTab === 'monitor' ? (
                 <MonitorPanel stats={stats} loading={loading} errorMsg={errorMsg} />
-            ) : (
+            ) : activeTab === 'processes' ? (
                 <ProcessPanel activeUrl={activeUrlRef.current} />
+            ) : (
+                // Mengirim activeUrl agar PowerPanel mengontrol device yang benar
+                <PowerPanel activeUrl={activeUrlRef.current} />
             )}
         </View>
       </View>
     );
   }
 
+  // --- RENDER FLOATING BUTTON ---
   const panResponder = useRef(
     PanResponder.create({
       onMoveShouldSetPanResponder: (_, gestureState) => Math.abs(gestureState.dx) > 5 || Math.abs(gestureState.dy) > 5,
@@ -134,6 +159,7 @@ export default function DraggableButton({ mode = 'floating' }: { mode?: 'floatin
       onPanResponderMove: Animated.event([null, { dx: pan.x, dy: pan.y }], { useNativeDriver: false }),
       onPanResponderRelease: () => {
         pan.flattenOffset();
+        // Logika menempel ke tepi (Snap to Edge)
         const currentX = val.current.x;
         let targetX = (currentX + BUTTON_SIZE / 2 > SCREEN_WIDTH / 2) ? SCREEN_WIDTH - BUTTON_SIZE - MARGIN_TEPI : MARGIN_TEPI;
         let targetY = val.current.y;
@@ -152,6 +178,7 @@ export default function DraggableButton({ mode = 'floating' }: { mode?: 'floatin
         </TouchableOpacity>
       </Animated.View>
 
+      {/* Modal Quick Stats (Single Tap) */}
       <Modal transparent={true} visible={statsModalVisible} onRequestClose={() => setStatsModalVisible(false)} animationType="none">
         <View style={styles.modalOverlay}>
           <Animated.View style={[styles.modalView, { transform: [{ scale: modalScale }] }]}>
@@ -169,6 +196,7 @@ export default function DraggableButton({ mode = 'floating' }: { mode?: 'floatin
   );
 }
 
+// Komponen Tombol Tab Kecil
 function TabButton({title, active, onPress}: any) {
     return (
         <TouchableOpacity onPress={onPress} style={[styles.tabButton, active && styles.tabActive]}>
@@ -179,7 +207,7 @@ function TabButton({title, active, onPress}: any) {
 
 const styles = StyleSheet.create({
   absoluteContainer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999, pointerEvents: 'box-none' },
-  floatingButton: { backgroundColor: '#007AFF', width: BUTTON_SIZE, height: BUTTON_SIZE, borderRadius: BUTTON_SIZE / 2, alignItems: 'center', justifyContent: 'center', elevation: 5 },
+  floatingButton: { backgroundColor: '#007AFF', width: BUTTON_SIZE, height: BUTTON_SIZE, borderRadius: BUTTON_SIZE / 2, alignItems: 'center', justifyContent: 'center', elevation: 5, shadowColor: "#000", shadowOffset: {width: 0, height: 2}, shadowOpacity: 0.25, shadowRadius: 3.84 },
   
   modalOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)' },
   modalView: { width: 340, backgroundColor: '#f2f2f7', borderRadius: 20, padding: 15, alignItems: 'center', elevation: 5 },
@@ -189,8 +217,8 @@ const styles = StyleSheet.create({
   splitHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5, borderBottomWidth: 1, borderBottomColor: '#e5e5e5', paddingBottom: 5 },
   closeSplitButton: { backgroundColor: '#FF3B30', width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
 
-  tabButton: { paddingVertical: 5, paddingHorizontal: 15, borderRadius: 15, backgroundColor: '#e0e0e0', marginRight: 8 },
+  tabButton: { paddingVertical: 5, paddingHorizontal: 12, borderRadius: 15, backgroundColor: '#e0e0e0', marginRight: 8 },
   tabActive: { backgroundColor: '#007AFF' },
-  tabText: { fontSize: 12, color: '#555', fontWeight: '600' },
+  tabText: { fontSize: 11, color: '#555', fontWeight: '600' },
   tabTextActive: { color: 'white' },
 });
