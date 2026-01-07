@@ -139,7 +139,7 @@ export default function TabOneScreen() {
             <View style={styles.shortcutGrid}>
                 <ShortcutButton label="Set Pomodoro" icon="cog" color="#FF6B6B" onPress={() => router.push('/pomodoro')} />
                 <ShortcutButton label="Keuangan" icon="money" color="#34C759" onPress={() => router.push('/finance')} />
-                <ShortcutButton label="Statistik" icon="bar-chart" color="#5856D6" onPress={() => {}} />
+                <ShortcutButton label="FAM" icon="laptop" color="#4b2aefff" onPress={() => router.push('/FAM')} />
             </View>
         </View>
 
