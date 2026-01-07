@@ -5,17 +5,19 @@ import { FontAwesome } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 
 import { useFinance, Budget, Transaction } from '@/context/FinanceContext';
+import { exportToPDF, exportToExcel } from '@/utils/exportHelper'; 
 
 export default function FinanceScreen() {
   const { 
     balance, savings, transactions, budgets, 
     addTransaction, editTransaction, deleteTransaction, 
-    addBudget, editBudget, deleteBudget, moveToSavings 
+    addBudget, editBudget, deleteBudget, moveToSavings,
+    resetFinanceData 
   } = useFinance();
   
   // -- STATE MODAL TRANSAKSI --
   const [txModalVisible, setTxModalVisible] = useState(false);
-  const [editingTx, setEditingTx] = useState<Transaction | null>(null); // Jika null = Add, Isi = Edit
+  const [editingTx, setEditingTx] = useState<Transaction | null>(null);
   const [txTitle, setTxTitle] = useState('');
   const [txAmount, setTxAmount] = useState('');
   const [txType, setTxType] = useState<'income' | 'expense'>('expense');
@@ -27,13 +29,37 @@ export default function FinanceScreen() {
   const [budgetName, setBudgetName] = useState('');
   const [budgetLimit, setBudgetLimit] = useState('');
 
-  // Helper Format
   const formatRupiah = (num: number) => 'Rp ' + num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
   
   const getBudgetUsage = (budgetName: string) => {
     return transactions
       .filter(t => t.type === 'expense' && t.category === budgetName)
       .reduce((sum, t) => sum + t.amount, 0);
+  };
+
+  // --- HANDLER RESET ---
+  const handleReset = () => {
+    Alert.alert(
+      "Reset Data Keuangan ⚠️",
+      "Apakah Anda yakin ingin menghapus SEMUA data transaksi, budget, dan tabungan? Tindakan ini tidak bisa dibatalkan.",
+      [
+        { text: "Batal", style: "cancel" },
+        { text: "Hapus Semua", style: 'destructive', onPress: resetFinanceData }
+      ]
+    );
+  };
+
+  // --- HANDLER EXPORT ---
+  const handleExport = () => {
+    Alert.alert(
+      "Export Laporan 📄",
+      "Pilih format laporan keuangan Anda:",
+      [
+        { text: "Batal", style: "cancel" },
+        { text: "Export Excel (.xlsx)", onPress: () => exportToExcel(transactions) },
+        { text: "Export PDF (Lucu)", onPress: () => exportToPDF(transactions, balance, savings, budgets) }
+      ]
+    );
   };
 
   // --- HANDLER TRANSAKSI ---
@@ -56,13 +82,10 @@ export default function FinanceScreen() {
     if (!txTitle || !txAmount) return;
     
     if (editingTx) {
-        // Mode Edit
         editTransaction(editingTx.id, txTitle, parseInt(txAmount), txType === 'expense' ? selectedCategory : undefined);
     } else {
-        // Mode Add
         addTransaction(txTitle, parseInt(txAmount), txType, txType === 'expense' ? selectedCategory : undefined);
     }
-
     setTxModalVisible(false);
   };
 
@@ -102,7 +125,6 @@ export default function FinanceScreen() {
       }
   };
 
-  // --- HANDLER SAVINGS ---
   const handleMoveToSavings = () => {
       Alert.alert("Tabung Sisa Saldo?", `Pindahkan ${formatRupiah(balance)} ke Simpanan?`, [
           { text: "Batal" }, { text: "Ya, Tabung", onPress: moveToSavings }
@@ -111,12 +133,26 @@ export default function FinanceScreen() {
 
   return (
     <View style={styles.container}>
-      <Stack.Screen options={{ title: 'Manajemen Keuangan', headerStyle: { backgroundColor: '#34C759' }, headerTintColor: '#fff' }} />
+      <Stack.Screen options={{ 
+        title: 'Manajemen Keuangan', 
+        headerStyle: { backgroundColor: '#34C759' }, 
+        headerTintColor: '#fff',
+        headerRight: () => (
+          <View style={{flexDirection: 'row', gap: 20, marginRight: 10}}>
+             <TouchableOpacity onPress={handleReset}>
+                <FontAwesome name="trash-o" size={20} color="white" />
+             </TouchableOpacity>
+             <TouchableOpacity onPress={handleExport}>
+                <FontAwesome name="share-square-o" size={20} color="white" />
+             </TouchableOpacity>
+          </View>
+        )
+      }} />
       <StatusBar style="light" />
 
       <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
         
-        {/* 1. HEADER RINGKASAN */}
+        {/* HEADER RINGKASAN */}
         <View style={styles.headerContainer}>
             <View style={[styles.card, {backgroundColor: '#34C759', marginBottom: 10}]}>
                 <Text style={styles.labelWhite}>Saldo Mingguan Aktif</Text>
@@ -147,7 +183,7 @@ export default function FinanceScreen() {
             </View>
         </View>
 
-        {/* 2. BUDGETING SECTION */}
+        {/* BUDGETING SECTION */}
         <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Budgeting & Anggaran</Text>
             <TouchableOpacity onPress={openAddBudget}><Text style={{color:'#007AFF', fontWeight:'bold'}}>+ Tambah</Text></TouchableOpacity>
@@ -174,7 +210,7 @@ export default function FinanceScreen() {
             <View style={{width: 20}} />
         </ScrollView>
 
-        {/* 3. LIST TRANSAKSI */}
+        {/* LIST TRANSAKSI */}
         <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Riwayat Transaksi</Text>
             <TouchableOpacity onPress={() => openAddTx('expense')}><Text style={{color:'#FF3B30', fontWeight:'bold'}}>+ Pengeluaran</Text></TouchableOpacity>
