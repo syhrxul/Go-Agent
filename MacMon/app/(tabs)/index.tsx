@@ -7,12 +7,16 @@ import { router } from 'expo-router';
 
 // IMPORT HOOK CONTEXT
 import { usePomodoro } from '@/context/PomodoroContext';
+import { useFinance } from '@/context/FinanceContext'; // <--- IMPORT BARU
 
 export default function TabOneScreen() {
   const [date, setDate] = useState(new Date());
 
-  // AMBIL DATA DARI GLOBAL CONTEXT
+  // 1. AMBIL DATA POMODORO
   const { timeLeft, isActive, toggleTimer, isBreak, isLongBreak } = usePomodoro();
+
+  // 2. AMBIL DATA KEUANGAN (BARU)
+  const { balance, todayExpense } = useFinance();
 
   // Effect untuk Jam Realtime
   useEffect(() => {
@@ -27,11 +31,16 @@ export default function TabOneScreen() {
     return `${m < 10 ? '0' + m : m}:${s < 10 ? '0' + s : s}`;
   };
 
+  // Helper Format Rupiah (BARU)
+  const formatRupiah = (num: number) => {
+    return 'Rp ' + num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
         
-        {/* 1. HEADER & JAM */}
+        {/* HEADER & JAM */}
         <View style={styles.headerSection}>
           <Text style={styles.greetingText}>Halo, User 👋</Text>
           <Text style={styles.clockText}>
@@ -42,7 +51,7 @@ export default function TabOneScreen() {
           </Text>
         </View>
 
-        {/* 2. GRID DASHBOARD (Pomodoro & Keuangan) */}
+        {/* GRID DASHBOARD */}
         <View style={styles.gridContainer}>
           
           {/* WIDGET POMODORO */}
@@ -53,7 +62,6 @@ export default function TabOneScreen() {
               isBreak ? { backgroundColor: isLongBreak ? '#45B7D1' : '#4ECDC4' } : {} 
             ]} 
             activeOpacity={0.9}
-            // Klik kartu membuka Fullscreen
             onPress={() => router.push('/pomodoro-fullscreen')} 
           >
             <View style={styles.cardHeader}>
@@ -62,7 +70,6 @@ export default function TabOneScreen() {
                   <Text style={styles.cardTitleWhite}>
                     {isBreak ? (isLongBreak ? "Long Break" : "Short Break") : "Focus Timer"}
                   </Text>
-                  {/* Ikon Expand kecil sebagai petunjuk bisa diklik */}
                   <FontAwesome name="expand" size={12} color="rgba(255,255,255,0.6)" /> 
               </View>
             </View>
@@ -82,24 +89,38 @@ export default function TabOneScreen() {
             </TouchableOpacity>
           </TouchableOpacity>
 
-          {/* WIDGET KEUANGAN */}
-          <View style={[styles.card, styles.cardFinance]}>
+          {/* WIDGET KEUANGAN (DATA ASLI) */}
+          <TouchableOpacity 
+            style={[styles.card, styles.cardFinance]}
+            activeOpacity={0.9}
+            onPress={() => router.push('/finance')} // <--- NAVIGASI KE KEUANGAN
+          >
             <View style={styles.cardHeader}>
               <FontAwesome name="credit-card" size={16} color="#333" />
-              <Text style={styles.cardTitleDark}>Keuangan</Text>
+              <View style={{flexDirection:'row', justifyContent:'space-between', flex:1, alignItems:'center'}}>
+                  <Text style={styles.cardTitleDark}>Keuangan</Text>
+                  <FontAwesome name="chevron-right" size={12} color="#ccc" /> 
+              </View>
             </View>
+            
             <View style={{marginTop: 10}}>
               <Text style={styles.financeLabel}>Sisa Saldo</Text>
-              <Text style={styles.financeValue}>Rp 2.500.000</Text>
+              <Text style={styles.financeValue} numberOfLines={1} adjustsFontSizeToFit>
+                {formatRupiah(balance)}
+              </Text>
             </View>
+            
             <View style={{marginTop: 10}}>
               <Text style={styles.financeLabel}>Pengeluaran Hari Ini</Text>
-              <Text style={[styles.financeValue, {color: '#FF3B30', fontSize: 14}]}>- Rp 45.000</Text>
+              <Text style={[styles.financeValue, {color: '#FF3B30', fontSize: 14}]}>
+                 {todayExpense === 0 ? 'Rp 0' : `- ${formatRupiah(todayExpense)}`}
+              </Text>
             </View>
-          </View>
+          </TouchableOpacity>
+
         </View>
 
-        {/* 3. WIDGET REMINDER */}
+        {/* WIDGET REMINDER */}
         <View style={[styles.card, styles.cardFull]}>
           <View style={styles.cardHeaderRow}>
             <View style={{flexDirection:'row', alignItems:'center'}}>
@@ -112,37 +133,13 @@ export default function TabOneScreen() {
           <TaskItem title="Bayar Tagihan Internet" time="13:00 PM" completed={false} />
         </View>
 
-        {/* 4. SECTION BARU: MENU & PINTASAN */}
+        {/* SHORTCUT MENU */}
         <View style={{marginTop: 10}}>
             <Text style={styles.sectionTitle}>Pintasan Menu</Text>
-            
             <View style={styles.shortcutGrid}>
-                
-                {/* TOMBOL 1: SETTING POMODORO */}
-                <ShortcutButton 
-                    label="Set Pomodoro" 
-                    icon="cog" 
-                    color="#FF6B6B" 
-                    onPress={() => router.push('/pomodoro')} 
-                />
-
-
-                {/* TOMBOL 3: KALENDER (Dummy) */}
-                <ShortcutButton 
-                    label="Kalender" 
-                    icon="calendar" 
-                    color="#FF9500" 
-                    onPress={() => {}} 
-                />
-
-                {/* TOMBOL 4: STATISTIK (Dummy) */}
-                <ShortcutButton 
-                    label="Statistik" 
-                    icon="bar-chart" 
-                    color="#5856D6" 
-                    onPress={() => {}} 
-                />
-
+                <ShortcutButton label="Set Pomodoro" icon="cog" color="#FF6B6B" onPress={() => router.push('/pomodoro')} />
+                <ShortcutButton label="Keuangan" icon="money" color="#34C759" onPress={() => router.push('/finance')} />
+                <ShortcutButton label="Statistik" icon="bar-chart" color="#5856D6" onPress={() => {}} />
             </View>
         </View>
 
@@ -151,7 +148,7 @@ export default function TabOneScreen() {
   );
 }
 
-// --- KOMPONEN PENDUKUNG ---
+// --- SUB COMPONENTS ---
 
 function TaskItem({ title, time, completed }: { title: string, time: string, completed: boolean }) {
   return (
@@ -181,7 +178,6 @@ function ShortcutButton({ label, icon, color, onPress }: any) {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#f8f9fa' },
   scrollContainer: { padding: 20, paddingBottom: 100 },
-  
   headerSection: { marginBottom: 20 },
   greetingText: { fontSize: 16, color: '#666', marginBottom: 5 },
   clockText: { fontSize: 32, fontWeight: 'bold', color: '#333' },
@@ -191,7 +187,6 @@ const styles = StyleSheet.create({
   
   card: { borderRadius: 20, padding: 15, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 4 },
   
-  // Pomodoro
   cardPomodoro: { width: '48%', backgroundColor: '#FF6B6B', alignItems: 'center', justifyContent: 'space-between', height: 160 },
   cardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 5, width: '100%', borderBottomWidth: 0 },
   cardTitleWhite: { color: 'white', fontWeight: 'bold', fontSize: 12, marginLeft: 5 },
@@ -199,20 +194,17 @@ const styles = StyleSheet.create({
   pomoButton: { backgroundColor: 'rgba(255,255,255,0.2)', paddingVertical: 8, paddingHorizontal: 15, borderRadius: 20, width: '100%', alignItems: 'center' },
   pomoButtonText: { color: 'white', fontWeight: 'bold', fontSize: 12 },
 
-  // Finance
   cardFinance: { width: '48%', backgroundColor: 'white', height: 160 },
   cardTitleDark: { color: '#333', fontWeight: 'bold', fontSize: 12, marginLeft: 5 },
   financeLabel: { fontSize: 10, color: '#888' },
   financeValue: { fontSize: 18, fontWeight: 'bold', color: '#333', marginBottom: 5 },
   
-  // Tasks
   cardFull: { width: '100%', backgroundColor: 'white', marginBottom: 20 },
   cardHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
   taskRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
   taskTitle: { fontSize: 14, color: '#333', fontWeight: '500' },
   taskTime: { fontSize: 10, color: '#999' },
 
-  // Shortcut Section Styles
   sectionTitle: { fontSize: 18, fontWeight: 'bold', color: '#333', marginBottom: 15 },
   shortcutGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
   shortcutBtn: { width: '23%', alignItems: 'center', marginBottom: 15 },
