@@ -1,11 +1,25 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, ScrollView, TextInput, Modal, Alert } from 'react-native';
-import { Stack } from 'expo-router';
-import { FontAwesome } from '@expo/vector-icons';
+import { StyleSheet, View, Text, TouchableOpacity, ScrollView, TextInput, Modal, Alert, Dimensions } from 'react-native';
+import { Stack, router } from 'expo-router';
+import { FontAwesome, MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useFinance, Budget, Transaction } from '@/context/FinanceContext';
 import { exportToPDF, exportToExcel } from '@/utils/exportHelper'; 
+
+// Palet Warna Konsisten
+const Colors = {
+  background: '#F2F4F8',
+  surface: '#FFFFFF',
+  primary: '#6366F1',        // Indigo
+  success: '#10B981',        // Emerald
+  danger: '#EF4444',         // Red
+  warning: '#F59E0B',        // Amber
+  textPrimary: '#1E293B',
+  textSecondary: '#64748B',
+  border: '#E2E8F0',
+};
 
 export default function FinanceScreen() {
   const { 
@@ -15,7 +29,7 @@ export default function FinanceScreen() {
     resetFinanceData 
   } = useFinance();
   
-  // -- STATE MODAL TRANSAKSI --
+  // -- STATE MODALS --
   const [txModalVisible, setTxModalVisible] = useState(false);
   const [editingTx, setEditingTx] = useState<Transaction | null>(null);
   const [txTitle, setTxTitle] = useState('');
@@ -23,7 +37,6 @@ export default function FinanceScreen() {
   const [txType, setTxType] = useState<'income' | 'expense'>('expense');
   const [selectedCategory, setSelectedCategory] = useState<string>(''); 
 
-  // -- STATE MODAL BUDGET --
   const [budgetModalVisible, setBudgetModalVisible] = useState(false);
   const [editingBudget, setEditingBudget] = useState<Budget | null>(null);
   const [budgetName, setBudgetName] = useState('');
@@ -37,310 +50,297 @@ export default function FinanceScreen() {
       .reduce((sum, t) => sum + t.amount, 0);
   };
 
-  // --- HANDLER RESET ---
+  // --- ACTIONS ---
   const handleReset = () => {
-    Alert.alert(
-      "Reset Data Keuangan ⚠️",
-      "Apakah Anda yakin ingin menghapus SEMUA data transaksi, budget, dan tabungan? Tindakan ini tidak bisa dibatalkan.",
-      [
+    Alert.alert("Reset Data?", "Semua data akan dihapus permanen.", [
         { text: "Batal", style: "cancel" },
         { text: "Hapus Semua", style: 'destructive', onPress: resetFinanceData }
-      ]
-    );
+    ]);
   };
 
-  // --- HANDLER EXPORT ---
   const handleExport = () => {
-    Alert.alert(
-      "Export Laporan 📄",
-      "Pilih format laporan keuangan Anda:",
-      [
-        { text: "Batal", style: "cancel" },
-        { text: "Export Excel (.xlsx)", onPress: () => exportToExcel(transactions) },
-        { text: "Export PDF (Lucu)", onPress: () => exportToPDF(transactions, balance, savings, budgets) }
-      ]
-    );
+    Alert.alert("Export Laporan", "Pilih format:", [
+        { text: "Excel (.xlsx)", onPress: () => exportToExcel(transactions) },
+        { text: "PDF", onPress: () => exportToPDF(transactions, balance, savings, budgets) },
+        { text: "Batal", style: "cancel" }
+    ]);
   };
 
-  // --- HANDLER TRANSAKSI ---
+  // --- TX HANDLERS ---
   const openAddTx = (type: 'income' | 'expense') => {
-      setEditingTx(null);
-      setTxTitle(''); setTxAmount(''); setTxType(type); setSelectedCategory('');
-      setTxModalVisible(true);
+      setEditingTx(null); setTxTitle(''); setTxAmount(''); setTxType(type); setSelectedCategory(''); setTxModalVisible(true);
   };
-
   const openEditTx = (tx: Transaction) => {
-      setEditingTx(tx);
-      setTxTitle(tx.title);
-      setTxAmount(tx.amount.toString());
-      setTxType(tx.type);
-      setSelectedCategory(tx.category || '');
-      setTxModalVisible(true);
+      setEditingTx(tx); setTxTitle(tx.title); setTxAmount(tx.amount.toString()); setTxType(tx.type); setSelectedCategory(tx.category || ''); setTxModalVisible(true);
   };
-
   const handleSaveTx = () => {
     if (!txTitle || !txAmount) return;
-    
-    if (editingTx) {
-        editTransaction(editingTx.id, txTitle, parseInt(txAmount), txType === 'expense' ? selectedCategory : undefined);
-    } else {
-        addTransaction(txTitle, parseInt(txAmount), txType, txType === 'expense' ? selectedCategory : undefined);
-    }
+    if (editingTx) editTransaction(editingTx.id, txTitle, parseInt(txAmount), txType === 'expense' ? selectedCategory : undefined);
+    else addTransaction(txTitle, parseInt(txAmount), txType, txType === 'expense' ? selectedCategory : undefined);
     setTxModalVisible(false);
   };
-
   const handleDeleteTx = () => {
-      if (editingTx) {
-          Alert.alert("Hapus Transaksi", "Yakin hapus transaksi ini?", [
-              { text: "Batal" },
-              { text: "Hapus", style: 'destructive', onPress: () => { deleteTransaction(editingTx.id); setTxModalVisible(false); } }
-          ]);
-      }
+      if (editingTx) { deleteTransaction(editingTx.id); setTxModalVisible(false); }
   };
 
-  // --- HANDLER BUDGET ---
-  const openAddBudget = () => {
-      setEditingBudget(null); setBudgetName(''); setBudgetLimit(''); setBudgetModalVisible(true);
-  };
-  const openEditBudget = (budget: Budget) => {
-      setEditingBudget(budget); setBudgetName(budget.name); setBudgetLimit(budget.limit.toString()); setBudgetModalVisible(true);
-  };
+  // --- BUDGET HANDLERS ---
+  const openAddBudget = () => { setEditingBudget(null); setBudgetName(''); setBudgetLimit(''); setBudgetModalVisible(true); };
+  const openEditBudget = (b: Budget) => { setEditingBudget(b); setBudgetName(b.name); setBudgetLimit(b.limit.toString()); setBudgetModalVisible(true); };
   const handleSaveBudget = () => {
       if (!budgetName || !budgetLimit) return;
-      if (editingBudget) {
-          editBudget(editingBudget.id, budgetName, parseInt(budgetLimit));
-      } else {
-          const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98FB98'];
-          const randomColor = colors[Math.floor(Math.random() * colors.length)];
-          addBudget(budgetName, parseInt(budgetLimit), randomColor);
+      if (editingBudget) editBudget(editingBudget.id, budgetName, parseInt(budgetLimit));
+      else {
+          const colors = ['#6366F1', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
+          addBudget(budgetName, parseInt(budgetLimit), colors[Math.floor(Math.random() * colors.length)]);
       }
       setBudgetModalVisible(false);
   };
-  const handleDeleteBudget = () => {
-      if (editingBudget) {
-          Alert.alert("Hapus Budget", "Kategori ini akan dihapus permanen.", [
-              { text: "Batal" }, 
-              { text: "Hapus", style: 'destructive', onPress: () => { deleteBudget(editingBudget.id); setBudgetModalVisible(false); } }
-          ]);
-      }
-  };
-
-  const handleMoveToSavings = () => {
-      Alert.alert("Tabung Sisa Saldo?", `Pindahkan ${formatRupiah(balance)} ke Simpanan?`, [
-          { text: "Batal" }, { text: "Ya, Tabung", onPress: moveToSavings }
-      ]);
-  };
+  const handleDeleteBudget = () => { if (editingBudget) { deleteBudget(editingBudget.id); setBudgetModalVisible(false); } };
 
   return (
-    <View style={styles.container}>
-      <Stack.Screen options={{ 
-        title: 'Manajemen Keuangan', 
-        headerStyle: { backgroundColor: '#34C759' }, 
-        headerTintColor: '#fff',
-        headerRight: () => (
-          <View style={{flexDirection: 'row', gap: 20, marginRight: 10}}>
-             <TouchableOpacity onPress={handleReset}>
-                <FontAwesome name="trash-o" size={20} color="white" />
-             </TouchableOpacity>
-             <TouchableOpacity onPress={handleExport}>
-                <FontAwesome name="share-square-o" size={20} color="white" />
-             </TouchableOpacity>
+    <SafeAreaView style={styles.container}>
+      <Stack.Screen options={{ headerShown: false }} />
+      <StatusBar style="dark" />
+
+      {/* HEADER UTAMA */}
+      <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.iconBtn}>
+              <MaterialIcons name="arrow-back-ios-new" size={20} color={Colors.textPrimary} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Financial Overview</Text>
+          <View style={{flexDirection: 'row', gap: 10}}>
+             <TouchableOpacity onPress={handleExport} style={styles.iconBtn}><MaterialIcons name="file-download" size={20} color={Colors.primary} /></TouchableOpacity>
+             <TouchableOpacity onPress={handleReset} style={styles.iconBtn}><MaterialIcons name="delete-outline" size={20} color={Colors.danger} /></TouchableOpacity>
           </View>
-        )
-      }} />
-      <StatusBar style="light" />
+      </View>
 
-      <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
+      <View style={styles.mainLayout}>
         
-        {/* HEADER RINGKASAN */}
-        <View style={styles.headerContainer}>
-            <View style={[styles.card, {backgroundColor: '#34C759', marginBottom: 10}]}>
-                <Text style={styles.labelWhite}>Saldo Mingguan Aktif</Text>
-                <Text style={styles.balanceBig}>{formatRupiah(balance)}</Text>
-                
-                <View style={styles.rowBtn}>
-                    <TouchableOpacity style={styles.smallBtn} onPress={() => openAddTx('income')}>
-                        <FontAwesome name="plus" size={12} color="#34C759" />
-                        <Text style={[styles.btnTextSmall, {color: '#34C759'}]}>Input Mingguan</Text>
-                    </TouchableOpacity>
-                    {balance > 0 && (
-                        <TouchableOpacity style={[styles.smallBtn, {backgroundColor: 'rgba(255,255,255,0.3)'}]} onPress={handleMoveToSavings}>
-                            <FontAwesome name="save" size={12} color="white" />
-                            <Text style={styles.btnTextSmall}>Tabung Sisa</Text>
+        {/* === KOLOM KIRI (OVERVIEW & BUDGETS) === */}
+        <View style={styles.leftColumn}>
+            
+            {/* 1. BALANCE CARDS */}
+            <View style={styles.balanceRow}>
+                {/* Main Balance */}
+                <View style={[styles.card, styles.balanceCard]}>
+                    <View style={styles.cardHeader}>
+                        <View style={styles.iconBox}><MaterialIcons name="account-balance-wallet" size={20} color={Colors.primary} /></View>
+                        <MaterialIcons name="more-horiz" size={20} color={Colors.textSecondary} />
+                    </View>
+                    <Text style={styles.labelTitle}>Active Balance</Text>
+                    <Text style={styles.bigBalance}>{formatRupiah(balance)}</Text>
+                    
+                    <View style={styles.actionRow}>
+                        <TouchableOpacity style={[styles.actionBtn, {backgroundColor: Colors.primary}]} onPress={() => openAddTx('income')}>
+                             <MaterialIcons name="add" size={16} color="white" />
+                             <Text style={styles.btnTextWhite}>Income</Text>
                         </TouchableOpacity>
-                    )}
+                        <TouchableOpacity style={[styles.actionBtn, {backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border}]} onPress={moveToSavings}>
+                             <MaterialIcons name="savings" size={16} color={Colors.textPrimary} />
+                             <Text style={styles.btnTextDark}>Save</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+
+                {/* Savings Card */}
+                <View style={[styles.card, styles.savingsCard]}>
+                    <Text style={styles.labelTitle}>Savings</Text>
+                    <Text style={[styles.bigBalance, {fontSize: 24}]}>{formatRupiah(savings)}</Text>
+                    <View style={styles.savingsIcon}>
+                        <Ionicons name="wallet" size={40} color={Colors.success + '40'} />
+                    </View>
                 </View>
             </View>
 
-            <View style={[styles.card, {backgroundColor: 'white', padding: 15}]}>
-                <View style={{flexDirection:'row', alignItems:'center'}}>
-                    <View style={styles.iconCircle}><FontAwesome name="bank" size={16} color="#5856D6" /></View>
-                    <View style={{marginLeft: 10}}>
-                        <Text style={styles.labelGray}>Total Simpanan / Tabungan</Text>
-                        <Text style={[styles.balanceSmall, {color: '#5856D6'}]}>{formatRupiah(savings)}</Text>
-                    </View>
-                </View>
-            </View>
-        </View>
-
-        {/* BUDGETING SECTION */}
-        <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Budgeting & Anggaran</Text>
-            <TouchableOpacity onPress={openAddBudget}><Text style={{color:'#007AFF', fontWeight:'bold'}}>+ Tambah</Text></TouchableOpacity>
-        </View>
-        
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{paddingLeft: 20, marginBottom: 20}}>
-            {budgets.map((budget) => {
-                const used = getBudgetUsage(budget.name);
-                const percent = Math.min((used / budget.limit) * 100, 100);
-                return (
-                    <TouchableOpacity key={budget.id} style={styles.budgetCard} onPress={() => openEditBudget(budget)}>
-                        <View style={{flexDirection:'row', justifyContent:'space-between', marginBottom: 5}}>
-                            <Text style={styles.budgetName}>{budget.name}</Text>
-                            <Text style={[styles.budgetPercent, percent >= 100 && {color: 'red'}]}>{percent.toFixed(0)}%</Text>
-                        </View>
-                        <Text style={styles.budgetAmount}>{formatRupiah(used)} / {formatRupiah(budget.limit)}</Text>
-                        <View style={styles.progressBarBg}>
-                            <View style={[styles.progressBarFill, {width: `${percent}%`, backgroundColor: percent >= 100 ? 'red' : budget.color}]} />
-                        </View>
-                    </TouchableOpacity>
-                );
-            })}
-            {budgets.length === 0 && <Text style={{color:'#999', fontStyle:'italic', marginLeft: 5}}>Belum ada budget. Klik + Tambah.</Text>}
-            <View style={{width: 20}} />
-        </ScrollView>
-
-        {/* LIST TRANSAKSI */}
-        <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Riwayat Transaksi</Text>
-            <TouchableOpacity onPress={() => openAddTx('expense')}><Text style={{color:'#FF3B30', fontWeight:'bold'}}>+ Pengeluaran</Text></TouchableOpacity>
-        </View>
-
-        <View style={{paddingHorizontal: 20}}>
-            {transactions.map((item) => (
-                <TouchableOpacity key={item.id} style={styles.txItem} onPress={() => openEditTx(item)}>
-                    <View style={[styles.iconBox, {backgroundColor: item.type === 'income' ? '#E8F5E9' : '#FFEBEE'}]}>
-                        <FontAwesome name={item.type === 'income' ? "arrow-up" : "arrow-down"} size={16} color={item.type === 'income' ? "#34C759" : "#FF3B30"} />
-                    </View>
-                    <View style={{flex: 1, marginLeft: 10}}>
-                        <Text style={styles.txTitle}>{item.title}</Text>
-                        {item.category && <Text style={styles.txCategory}>{item.category}</Text>}
-                        <Text style={styles.txDate}>{new Date(item.date).toLocaleDateString('id-ID')}</Text>
-                    </View>
-                    <View style={{alignItems: 'flex-end'}}>
-                        <Text style={[styles.txAmount, {color: item.type === 'income' ? "#34C759" : "#FF3B30"}]}>
-                            {item.type === 'income' ? '+' : '-'} {formatRupiah(item.amount)}
-                        </Text>
-                        <FontAwesome name="pencil" size={10} color="#ccc" style={{marginTop: 5}} />
-                    </View>
+            {/* 2. BUDGETS */}
+            <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Monthly Budgets</Text>
+                <TouchableOpacity onPress={openAddBudget} style={styles.addBtnSmall}>
+                    <MaterialIcons name="add" size={14} color="white" />
                 </TouchableOpacity>
-            ))}
-            {transactions.length === 0 && <Text style={{textAlign:'center', color:'#999', marginTop: 20}}>Belum ada transaksi</Text>}
-        </View>
-
-      </ScrollView>
-
-      {/* --- MODAL TRANSAKSI --- */}
-      <Modal visible={txModalVisible} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-                <Text style={styles.modalTitle}>{editingTx ? "Edit Transaksi" : `Catat ${txType === 'income' ? 'Pemasukan' : 'Pengeluaran'}`}</Text>
-                
-                <Text style={styles.inputLabel}>Keterangan</Text>
-                <TextInput style={styles.input} placeholder="Contoh: Beli Bensin" value={txTitle} onChangeText={setTxTitle} />
-                
-                <Text style={styles.inputLabel}>Nominal</Text>
-                <TextInput style={styles.input} placeholder="0" keyboardType="numeric" value={txAmount} onChangeText={setTxAmount} />
-
-                {txType === 'expense' && budgets.length > 0 && (
-                    <>
-                        <Text style={styles.inputLabel}>Kategori Budget</Text>
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{marginBottom: 15}}>
-                            {budgets.map(b => (
-                                <TouchableOpacity 
-                                    key={b.id} 
-                                    style={[styles.categoryChip, selectedCategory === b.name && {backgroundColor: '#34C759', borderColor: '#34C759'}]}
-                                    onPress={() => setSelectedCategory(b.name === selectedCategory ? '' : b.name)}
-                                >
-                                    <Text style={[styles.categoryText, selectedCategory === b.name && {color: 'white'}]}>{b.name}</Text>
-                                </TouchableOpacity>
-                            ))}
-                        </ScrollView>
-                    </>
-                )}
-
-                <View style={styles.modalBtns}>
-                    <TouchableOpacity style={[styles.modalBtn, {backgroundColor: '#ccc'}]} onPress={() => setTxModalVisible(false)}><Text style={styles.modalBtnText}>Batal</Text></TouchableOpacity>
-                    {editingTx && (
-                        <TouchableOpacity style={[styles.modalBtn, {backgroundColor: '#FF3B30', marginRight: 10}]} onPress={handleDeleteTx}><Text style={styles.modalBtnText}>Hapus</Text></TouchableOpacity>
-                    )}
-                    <TouchableOpacity style={[styles.modalBtn, {backgroundColor: '#34C759'}]} onPress={handleSaveTx}><Text style={styles.modalBtnText}>Simpan</Text></TouchableOpacity>
-                </View>
             </View>
+
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{paddingRight: 20}}>
+                {budgets.map((b) => {
+                    const used = getBudgetUsage(b.name);
+                    const percent = Math.min((used / b.limit) * 100, 100);
+                    return (
+                        <TouchableOpacity key={b.id} style={styles.budgetCard} onPress={() => openEditBudget(b)}>
+                            <View style={[styles.budgetIcon, {backgroundColor: b.color + '20'}]}>
+                                <MaterialIcons name="pie-chart" size={18} color={b.color} />
+                            </View>
+                            <View style={{marginTop: 10}}>
+                                <Text style={styles.budgetName}>{b.name}</Text>
+                                <Text style={styles.budgetLimit}>{formatRupiah(used)} / {formatRupiah(b.limit)}</Text>
+                            </View>
+                            <View style={styles.progressBg}>
+                                <View style={[styles.progressFill, {width: `${percent}%`, backgroundColor: b.color}]} />
+                            </View>
+                        </TouchableOpacity>
+                    )
+                })}
+                {budgets.length === 0 && <Text style={styles.emptyText}>No budgets set. Click + to add.</Text>}
+            </ScrollView>
+
         </View>
-      </Modal>
 
-      {/* --- MODAL BUDGET --- */}
-      <Modal visible={budgetModalVisible} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-                <Text style={styles.modalTitle}>{editingBudget ? "Edit Budget" : "Tambah Budget Baru"}</Text>
-                
-                <Text style={styles.inputLabel}>Nama Kategori</Text>
-                <TextInput style={styles.input} placeholder="Contoh: Makan" value={budgetName} onChangeText={setBudgetName} />
-                
-                <Text style={styles.inputLabel}>Batas Limit (Rp)</Text>
-                <TextInput style={styles.input} placeholder="0" keyboardType="numeric" value={budgetLimit} onChangeText={setBudgetLimit} />
-
-                <View style={styles.modalBtns}>
-                    <TouchableOpacity style={[styles.modalBtn, {backgroundColor: '#ccc'}]} onPress={() => setBudgetModalVisible(false)}><Text style={styles.modalBtnText}>Batal</Text></TouchableOpacity>
-                    {editingBudget && (
-                        <TouchableOpacity style={[styles.modalBtn, {backgroundColor: '#FF3B30', marginRight: 10}]} onPress={handleDeleteBudget}><Text style={styles.modalBtnText}>Hapus</Text></TouchableOpacity>
-                    )}
-                    <TouchableOpacity style={[styles.modalBtn, {backgroundColor: '#007AFF'}]} onPress={handleSaveBudget}><Text style={styles.modalBtnText}>Simpan</Text></TouchableOpacity>
-                </View>
+        {/* === KOLOM KANAN (TRANSACTIONS) === */}
+        <View style={styles.rightColumn}>
+             <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Recent Transactions</Text>
+                <TouchableOpacity onPress={() => openAddTx('expense')} style={[styles.addBtnSmall, {backgroundColor: Colors.danger}]}>
+                    <MaterialIcons name="remove" size={14} color="white" />
+                </TouchableOpacity>
             </View>
-        </View>
-      </Modal>
 
-    </View>
+            <ScrollView style={styles.txList} showsVerticalScrollIndicator={false}>
+                {transactions.map((tx) => (
+                    <TouchableOpacity key={tx.id} style={styles.txItem} onPress={() => openEditTx(tx)}>
+                        <View style={[styles.txIcon, { backgroundColor: tx.type === 'income' ? '#DCFCE7' : '#FEE2E2' }]}>
+                            <MaterialIcons 
+                                name={tx.type === 'income' ? "arrow-downward" : "arrow-upward"} 
+                                size={18} 
+                                color={tx.type === 'income' ? Colors.success : Colors.danger} 
+                            />
+                        </View>
+                        <View style={{flex: 1}}>
+                            <Text style={styles.txTitle}>{tx.title}</Text>
+                            <Text style={styles.txDate}>{new Date(tx.date).toLocaleDateString()} • {tx.category || 'General'}</Text>
+                        </View>
+                        <Text style={[styles.txAmount, { color: tx.type === 'income' ? Colors.success : Colors.textPrimary }]}>
+                            {tx.type === 'income' ? '+' : '-'} {formatRupiah(tx.amount)}
+                        </Text>
+                    </TouchableOpacity>
+                ))}
+                {transactions.length === 0 && <Text style={styles.emptyText}>No transactions yet.</Text>}
+            </ScrollView>
+        </View>
+
+      </View>
+
+      {/* === MODAL (Reusable Style) === */}
+      <CustomModal visible={txModalVisible} onClose={() => setTxModalVisible(false)}>
+          <Text style={styles.modalTitle}>{editingTx ? "Edit Transaction" : `New ${txType === 'income' ? 'Income' : 'Expense'}`}</Text>
+          
+          <TextInput style={styles.input} placeholder="Title (e.g. Salary)" value={txTitle} onChangeText={setTxTitle} />
+          <TextInput style={styles.input} placeholder="Amount (e.g. 50000)" keyboardType="numeric" value={txAmount} onChangeText={setTxAmount} />
+          
+          {txType === 'expense' && budgets.length > 0 && (
+             <View style={{marginVertical: 10}}>
+                <Text style={styles.labelTitle}>Select Budget Category</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{marginTop: 5}}>
+                    {budgets.map(b => (
+                        <TouchableOpacity key={b.id} 
+                            style={[styles.chip, selectedCategory === b.name && {backgroundColor: Colors.primary}]}
+                            onPress={() => setSelectedCategory(b.name)}
+                        >
+                            <Text style={[styles.chipText, selectedCategory === b.name && {color: 'white'}]}>{b.name}</Text>
+                        </TouchableOpacity>
+                    ))}
+                </ScrollView>
+             </View>
+          )}
+
+          <View style={styles.modalActions}>
+              {editingTx && <TouchableOpacity style={styles.btnDelete} onPress={handleDeleteTx}><Text style={styles.btnTextWhite}>Delete</Text></TouchableOpacity>}
+              <TouchableOpacity style={styles.btnSave} onPress={handleSaveTx}><Text style={styles.btnTextWhite}>Save</Text></TouchableOpacity>
+          </View>
+      </CustomModal>
+
+      <CustomModal visible={budgetModalVisible} onClose={() => setBudgetModalVisible(false)}>
+          <Text style={styles.modalTitle}>{editingBudget ? "Edit Budget" : "New Budget"}</Text>
+          <TextInput style={styles.input} placeholder="Category Name" value={budgetName} onChangeText={setBudgetName} />
+          <TextInput style={styles.input} placeholder="Limit Amount" keyboardType="numeric" value={budgetLimit} onChangeText={setBudgetLimit} />
+          <View style={styles.modalActions}>
+              {editingBudget && <TouchableOpacity style={styles.btnDelete} onPress={handleDeleteBudget}><Text style={styles.btnTextWhite}>Delete</Text></TouchableOpacity>}
+              <TouchableOpacity style={styles.btnSave} onPress={handleSaveBudget}><Text style={styles.btnTextWhite}>Save</Text></TouchableOpacity>
+          </View>
+      </CustomModal>
+
+    </SafeAreaView>
   );
 }
 
+// --- COMPONENTS ---
+const CustomModal = ({ visible, onClose, children }: any) => (
+    <Modal visible={visible} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+                {children}
+                <TouchableOpacity style={styles.btnClose} onPress={onClose}><MaterialIcons name="close" size={20} color={Colors.textSecondary} /></TouchableOpacity>
+            </View>
+        </View>
+    </Modal>
+);
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f2f2f7' },
-  headerContainer: { padding: 20 },
-  card: { borderRadius: 15, padding: 15, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5, elevation: 2 },
-  labelWhite: { color: 'rgba(255,255,255,0.8)', fontSize: 12 },
-  labelGray: { color: '#888', fontSize: 12 },
-  balanceBig: { color: 'white', fontSize: 28, fontWeight: 'bold', marginVertical: 10 },
-  balanceSmall: { fontSize: 20, fontWeight: 'bold' },
-  rowBtn: { flexDirection: 'row', gap: 10, marginTop: 5 },
-  smallBtn: { flexDirection: 'row', backgroundColor: 'white', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 15, alignItems: 'center', gap: 5 },
-  btnTextSmall: { fontSize: 10, fontWeight: 'bold', color: 'white' },
-  iconCircle: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#eee', justifyContent:'center', alignItems:'center' },
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginBottom: 10, marginTop: 10 },
-  sectionTitle: { fontSize: 16, fontWeight: 'bold', color: '#333' },
-  budgetCard: { backgroundColor: 'white', width: 160, padding: 12, borderRadius: 12, marginRight: 10, elevation: 1 },
-  budgetName: { fontWeight: 'bold', color: '#333', fontSize: 14 },
-  budgetPercent: { fontSize: 12, color: '#666' },
-  budgetAmount: { fontSize: 10, color: '#999', marginBottom: 8 },
-  progressBarBg: { height: 6, backgroundColor: '#eee', borderRadius: 3, width: '100%' },
-  progressBarFill: { height: 6, borderRadius: 3 },
-  txItem: { flexDirection: 'row', backgroundColor: 'white', padding: 12, borderRadius: 12, marginBottom: 8, alignItems: 'center' },
-  iconBox: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
-  txTitle: { fontWeight: 'bold', fontSize: 13, color: '#333' },
-  txCategory: { fontSize: 10, color: '#007AFF', marginTop: 2 },
-  txDate: { fontSize: 10, color: '#999' },
-  txAmount: { fontWeight: 'bold', fontSize: 13 },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
-  modalContent: { backgroundColor: 'white', borderRadius: 20, padding: 20 },
-  modalTitle: { fontSize: 18, fontWeight: 'bold', textAlign: 'center', marginBottom: 20 },
-  inputLabel: { fontSize: 12, color: '#666', marginBottom: 5 },
-  input: { backgroundColor: '#f9f9f9', padding: 12, borderRadius: 10, marginBottom: 15, borderWidth: 1, borderColor: '#eee' },
-  modalBtns: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 },
-  modalBtn: { flex: 1, padding: 12, borderRadius: 10, alignItems: 'center', marginHorizontal: 5 },
-  modalBtnText: { color: 'white', fontWeight: 'bold' },
-  categoryChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 15, borderWidth: 1, borderColor: '#ddd', marginRight: 8 },
-  categoryText: { fontSize: 12, color: '#555' }
+  container: { flex: 1, backgroundColor: Colors.background },
+  header: {
+      flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+      paddingHorizontal: 24, paddingVertical: 16,
+  },
+  headerTitle: { fontSize: 18, fontWeight: '700', color: Colors.textPrimary },
+  iconBtn: { 
+      width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.surface, 
+      justifyContent: 'center', alignItems: 'center',
+      shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 4, elevation: 1
+  },
+
+  mainLayout: { flex: 1, flexDirection: 'row', padding: 24, gap: 24 },
+  leftColumn: { flex: 1.8, gap: 24 },
+  rightColumn: { flex: 1.2, backgroundColor: Colors.surface, borderRadius: 28, padding: 20, shadowColor: "#000", shadowOpacity: 0.03, shadowRadius: 10, elevation: 2 },
+
+  // BALANCE CARDS
+  balanceRow: { flexDirection: 'row', gap: 16 },
+  card: { backgroundColor: Colors.surface, borderRadius: 28, padding: 20, flex: 1, shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 10, elevation: 2 },
+  balanceCard: { flex: 1.5 },
+  savingsCard: { flex: 1 },
+  
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
+  iconBox: { width: 32, height: 32, borderRadius: 10, backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center' },
+  labelTitle: { fontSize: 13, color: Colors.textSecondary, marginBottom: 4 },
+  bigBalance: { fontSize: 26, fontWeight: '700', color: Colors.textPrimary, fontFamily: 'SpaceMono-Regular', letterSpacing: -1 },
+  savingsIcon: { position: 'absolute', bottom: 10, right: 10 },
+  
+  actionRow: { flexDirection: 'row', gap: 10, marginTop: 20 },
+  actionBtn: { flexDirection: 'row', paddingVertical: 8, paddingHorizontal: 16, borderRadius: 14, alignItems: 'center', gap: 6 },
+  btnTextWhite: { color: 'white', fontWeight: '600', fontSize: 12 },
+  btnTextDark: { color: Colors.textPrimary, fontWeight: '600', fontSize: 12 },
+
+  // BUDGETS
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  sectionTitle: { fontSize: 16, fontWeight: '700', color: Colors.textPrimary },
+  addBtnSmall: { width: 24, height: 24, borderRadius: 8, backgroundColor: Colors.primary, justifyContent: 'center', alignItems: 'center' },
+  
+  budgetCard: { 
+      backgroundColor: Colors.surface, width: 140, padding: 16, borderRadius: 20, marginRight: 12,
+      borderWidth: 1, borderColor: Colors.border
+  },
+  budgetIcon: { width: 32, height: 32, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+  budgetName: { fontWeight: '600', color: Colors.textPrimary, fontSize: 13 },
+  budgetLimit: { fontSize: 10, color: Colors.textSecondary, marginTop: 2 },
+  progressBg: { height: 6, backgroundColor: Colors.background, borderRadius: 3, marginTop: 12, width: '100%' },
+  progressFill: { height: 6, borderRadius: 3 },
+
+  // TRANSACTIONS
+  txList: { flex: 1 },
+  txItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: Colors.background },
+  txIcon: { width: 36, height: 36, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  txTitle: { fontSize: 13, fontWeight: '600', color: Colors.textPrimary },
+  txDate: { fontSize: 11, color: Colors.textSecondary },
+  txAmount: { fontSize: 13, fontWeight: '700' },
+  emptyText: { textAlign: 'center', color: Colors.textSecondary, marginTop: 20, fontStyle: 'italic', fontSize: 12 },
+
+  // MODAL STYLES
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', alignItems: 'center' },
+  modalContent: { backgroundColor: Colors.surface, width: 400, padding: 24, borderRadius: 28, alignItems: 'stretch' },
+  modalTitle: { fontSize: 18, fontWeight: '700', marginBottom: 20, textAlign: 'center' },
+  input: { backgroundColor: Colors.background, borderRadius: 12, padding: 14, marginBottom: 12, fontSize: 14 },
+  modalActions: { flexDirection: 'row', gap: 10, marginTop: 10 },
+  btnSave: { flex: 1, backgroundColor: Colors.primary, padding: 14, borderRadius: 14, alignItems: 'center' },
+  btnDelete: { flex: 1, backgroundColor: Colors.danger, padding: 14, borderRadius: 14, alignItems: 'center' },
+  btnClose: { position: 'absolute', top: 16, right: 16 },
+  
+  chip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10, backgroundColor: Colors.background, marginRight: 8 },
+  chipText: { fontSize: 12, color: Colors.textSecondary }
 });

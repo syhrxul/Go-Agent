@@ -1,11 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, TextInput, TouchableOpacity, ScrollView } from 'react-native';
+import { StyleSheet, View, Text, TextInput, TouchableOpacity, ScrollView, Dimensions } from 'react-native';
 import { Stack, router } from 'expo-router';
-import { FontAwesome } from '@expo/vector-icons';
+import { FontAwesome, MaterialIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 // IMPORT CONTEXT
 import { usePomodoro } from '@/context/PomodoroContext';
+
+const { width } = Dimensions.get('window');
+
+// Palet Warna (Sama dengan Dashboard)
+const Colors = {
+  background: '#F2F4F8',
+  surface: '#FFFFFF',
+  primary: '#6366F1',        // Indigo (Focus)
+  success: '#10B981',        // Emerald (Break)
+  textPrimary: '#1E293B',
+  textSecondary: '#64748B',
+  border: '#E2E8F0',
+};
 
 export default function PomodoroScreen() {
   const { 
@@ -14,27 +28,27 @@ export default function PomodoroScreen() {
       isBreak, isLongBreak, completedCycles 
   } = usePomodoro();
 
-  const [focus, setFocus] = useState(focusDuration.toString());
-  const [shrt, setShrt] = useState(breakDuration.toString());
-  const [lng, setLng] = useState(longBreakDuration.toString());
-  const [cyc, setCyc] = useState(cycles.toString());
+  // State Lokal
+  const [focus, setFocus] = useState(focusDuration);
+  const [shrt, setShrt] = useState(breakDuration);
+  const [lng, setLng] = useState(longBreakDuration);
+  const [cyc, setCyc] = useState(cycles);
 
   useEffect(() => {
-    setFocus(focusDuration.toString());
-    setShrt(breakDuration.toString());
-    setLng(longBreakDuration.toString());
-    setCyc(cycles.toString());
+    setFocus(focusDuration);
+    setShrt(breakDuration);
+    setLng(longBreakDuration);
+    setCyc(cycles);
   }, [focusDuration, breakDuration, longBreakDuration, cycles]);
 
   const handleSave = () => {
-    updateSettings(
-        parseInt(focus) || 25, 
-        parseInt(shrt) || 5, 
-        parseInt(lng) || 15, 
-        parseInt(cyc) || 4 
-    );
+    updateSettings(focus, shrt, lng, cyc);
     router.back();
   };
+
+  // Helper Stepper
+  const increment = (setter: any, val: number) => setter(val + 1);
+  const decrement = (setter: any, val: number) => { if (val > 1) setter(val - 1); };
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
@@ -42,106 +56,190 @@ export default function PomodoroScreen() {
     return `${m < 10 ? '0' + m : m}:${s < 10 ? '0' + s : s}`;
   };
 
-  let statusText = "FOKUS";
-  let statusColor = "#333";
-  if (isBreak) {
-      if (isLongBreak) {
-          statusText = "ISTIRAHAT PANJANG";
-          statusColor = "#45B7D1";
-      } else {
-          statusText = "ISTIRAHAT PENDEK";
-          statusColor = "#4ECDC4";
-      }
-  }
+  const activeColor = isBreak ? Colors.success : Colors.primary;
+  const statusLabel = isBreak ? (isLongBreak ? "Long Break" : "Short Break") : "Focus Session";
 
   return (
-    <View style={styles.container}>
-      <Stack.Screen options={{ title: 'Timer Control', headerStyle: { backgroundColor: '#FF6B6B' }, headerTintColor: '#fff' }} />
-      <StatusBar style="light" />
+    <SafeAreaView style={styles.container}>
+      <Stack.Screen options={{ headerShown: false }} />
+      <StatusBar style="dark" />
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      {/* HEADER */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+           <MaterialIcons name="arrow-back-ios-new" size={20} color={Colors.textPrimary} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Timer Settings</Text>
+        <View style={{width: 40}} /> 
+      </View>
+
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         
-        {/* TIMER PREVIEW BESAR */}
-        <View style={styles.timerPreview}>
-            <View style={{flexDirection:'row', alignItems:'center', marginBottom: 5}}>
-                <View style={[styles.badge, {backgroundColor: statusColor}]}>
-                    <Text style={styles.badgeText}>{statusText}</Text>
-                </View>
-                <View style={[styles.badge, {backgroundColor: '#FF9500', marginLeft: 10}]}>
-                    <Text style={styles.badgeText}>LAP {completedCycles + 1}</Text>
-                </View>
+        {/* === TIMER PREVIEW CARD === */}
+        <View style={styles.previewCard}>
+            <View style={[styles.statusBadge, { backgroundColor: isBreak ? '#DCFCE7' : '#E0E7FF' }]}>
+                <View style={[styles.dot, { backgroundColor: activeColor }]} />
+                <Text style={[styles.statusText, { color: activeColor }]}>{statusLabel}</Text>
             </View>
 
-            <Text style={styles.bigTimer}>{formatTime(timeLeft)}</Text>
+            <Text style={[styles.bigTimer, { color: activeColor }]}>{formatTime(timeLeft)}</Text>
             
-            <View style={{flexDirection: 'row', gap: 15, marginTop: 10, alignItems: 'center'}}>
-                {/* Reset */}
-                <TouchableOpacity style={styles.controlBtn} onPress={resetTimer}>
-                    <FontAwesome name="refresh" size={24} color="#666" />
+            <View style={styles.controlRow}>
+                <TouchableOpacity style={styles.secondaryBtn} onPress={resetTimer}>
+                    <MaterialIcons name="refresh" size={24} color={Colors.textSecondary} />
                 </TouchableOpacity>
 
-                {/* Play/Pause */}
-                <TouchableOpacity style={[styles.controlBtn, {width: 70, height: 70, borderRadius: 35, backgroundColor: '#FF6B6B'}]} onPress={toggleTimer}>
-                    <FontAwesome name={isActive ? "pause" : "play"} size={30} color="white" />
+                <TouchableOpacity 
+                    style={[styles.playBtn, { backgroundColor: activeColor }]} 
+                    onPress={toggleTimer}
+                >
+                    <MaterialIcons name={isActive ? "pause" : "play-arrow"} size={36} color="white" />
                 </TouchableOpacity>
 
-                {/* UPDATE: Tombol Fullscreen */}
-                <TouchableOpacity style={styles.controlBtn} onPress={() => router.push('/pomodoro-fullscreen')}>
-                    <FontAwesome name="expand" size={24} color="#666" />
+                <TouchableOpacity style={styles.secondaryBtn} onPress={() => router.push('/pomodoro-fullscreen')}>
+                    <MaterialIcons name="fullscreen" size={28} color={Colors.textSecondary} />
                 </TouchableOpacity>
             </View>
         </View>
 
-        {/* FORM SETTINGS */}
-        <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Durasi (Menit)</Text>
-            <InputRow label="Waktu Fokus" value={focus} onChange={setFocus} icon="fire" color="#FF6B6B" />
+        {/* === SETTINGS SECTION === */}
+        <Text style={styles.sectionLabel}>Duration (Minutes)</Text>
+        
+        <View style={styles.settingsGroup}>
+            <StepperRow label="Focus Time" value={focus} onInc={() => increment(setFocus, focus)} onDec={() => decrement(setFocus, focus)} color={Colors.primary} />
             <View style={styles.divider} />
-            <InputRow label="Istirahat Pendek" value={shrt} onChange={setShrt} icon="coffee" color="#4ECDC4" />
+            <StepperRow label="Short Break" value={shrt} onInc={() => increment(setShrt, shrt)} onDec={() => decrement(setShrt, shrt)} color={Colors.success} />
             <View style={styles.divider} />
-            <InputRow label="Istirahat Panjang" value={lng} onChange={setLng} icon="bed" color="#45B7D1" />
+            <StepperRow label="Long Break" value={lng} onInc={() => increment(setLng, lng)} onDec={() => decrement(setLng, lng)} color={Colors.success} />
         </View>
 
-        <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Target</Text>
-            <InputRow label="Jumlah Laps (Siklus)" value={cyc} onChange={setCyc} icon="refresh" color="#FF9500" />
+        <Text style={styles.sectionLabel}>Target</Text>
+        <View style={styles.settingsGroup}>
+             <StepperRow label="Cycles (Laps)" value={cyc} onInc={() => increment(setCyc, cyc)} onDec={() => decrement(setCyc, cyc)} color="#F59E0B" />
         </View>
 
+        {/* SAVE BUTTON */}
         <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-            <Text style={styles.saveButtonText}>SIMPAN PENGATURAN</Text>
+            <Text style={styles.saveButtonText}>Save Changes</Text>
         </TouchableOpacity>
 
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
-function InputRow({ label, value, onChange, icon, color }: any) {
+// Komponen Baris Stepper (+ Angka -)
+function StepperRow({ label, value, onInc, onDec, color }: any) {
     return (
-        <View style={styles.row}>
-            <View style={{flexDirection:'row', alignItems:'center', flex:1}}>
-                <FontAwesome name={icon} size={18} color={color} style={{width: 30}} />
-                <Text style={styles.label}>{label}</Text>
+        <View style={styles.stepperRow}>
+            <View style={{flexDirection: 'row', alignItems: 'center', gap: 10}}>
+                <View style={[styles.iconBox, { backgroundColor: color + '15' }]}>
+                     <MaterialIcons name="timer" size={18} color={color} />
+                </View>
+                <Text style={styles.stepperLabel}>{label}</Text>
             </View>
-            <TextInput style={styles.input} value={value} onChangeText={onChange} keyboardType="numeric" />
+
+            <View style={styles.stepperControls}>
+                <TouchableOpacity style={styles.stepBtn} onPress={onDec}>
+                    <MaterialIcons name="remove" size={16} color={Colors.textSecondary} />
+                </TouchableOpacity>
+                <Text style={styles.stepValue}>{value}</Text>
+                <TouchableOpacity style={styles.stepBtn} onPress={onInc}>
+                    <MaterialIcons name="add" size={16} color={Colors.textPrimary} />
+                </TouchableOpacity>
+            </View>
         </View>
     );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8f9fa' },
-  scrollContent: { padding: 20 },
-  timerPreview: { alignItems: 'center', marginBottom: 30, marginTop: 10 },
-  bigTimer: { fontSize: 60, fontWeight: 'bold', color: '#333' },
-  controlBtn: { width: 50, height: 50, backgroundColor: 'white', borderRadius: 25, justifyContent: 'center', alignItems: 'center', elevation: 3 },
-  card: { backgroundColor: 'white', borderRadius: 15, padding: 15, marginBottom: 20, elevation: 2 },
-  sectionTitle: { fontSize: 14, fontWeight: 'bold', color: '#aaa', marginBottom: 15, textTransform: 'uppercase' },
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 5 },
-  label: { fontSize: 16, color: '#333', fontWeight: '500' },
-  input: { backgroundColor: '#f0f0f0', width: 60, height: 40, borderRadius: 10, textAlign: 'center', fontSize: 16, fontWeight: 'bold' },
-  divider: { height: 1, backgroundColor: '#f0f0f0', marginVertical: 10 },
-  saveButton: { backgroundColor: '#FF6B6B', padding: 15, borderRadius: 15, alignItems: 'center', marginTop: 10 },
-  saveButtonText: { color: 'white', fontWeight: 'bold', fontSize: 16 },
-  badge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12 },
-  badgeText: { color: 'white', fontWeight: 'bold', fontSize: 12 }
+  container: { flex: 1, backgroundColor: Colors.background },
+  
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+  },
+  headerTitle: { fontSize: 18, fontWeight: '700', color: Colors.textPrimary },
+  backButton: { 
+      width: 40, height: 40, borderRadius: 20, 
+      backgroundColor: Colors.surface, justifyContent: 'center', alignItems: 'center',
+      borderWidth: 1, borderColor: Colors.border
+  },
+
+  scrollContent: { padding: 24, paddingBottom: 50 },
+
+  // Timer Preview
+  previewCard: {
+      backgroundColor: Colors.surface,
+      borderRadius: 32,
+      padding: 30,
+      alignItems: 'center',
+      marginBottom: 30,
+      shadowColor: "#64748B",
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.08,
+      shadowRadius: 16,
+      elevation: 4,
+  },
+  statusBadge: {
+      flexDirection: 'row', alignItems: 'center',
+      paddingHorizontal: 12, paddingVertical: 6,
+      borderRadius: 20, gap: 8, marginBottom: 10,
+  },
+  dot: { width: 8, height: 8, borderRadius: 4 },
+  statusText: { fontSize: 12, fontWeight: '700', letterSpacing: 0.5 },
+  
+  bigTimer: {
+      fontFamily: 'SpaceMono-Regular',
+      fontSize: 56,
+      letterSpacing: -2,
+      marginBottom: 25,
+  },
+  controlRow: {
+      flexDirection: 'row', alignItems: 'center', gap: 20,
+  },
+  playBtn: {
+      width: 72, height: 72, borderRadius: 36,
+      justifyContent: 'center', alignItems: 'center',
+      shadowColor: "#6366F1", shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.25, shadowRadius: 12, elevation: 8,
+  },
+  secondaryBtn: {
+      width: 50, height: 50, borderRadius: 25,
+      backgroundColor: '#F1F5F9',
+      justifyContent: 'center', alignItems: 'center',
+  },
+
+  // Settings
+  sectionLabel: { fontSize: 14, fontWeight: '700', color: Colors.textSecondary, marginBottom: 12, marginLeft: 5 },
+  settingsGroup: {
+      backgroundColor: Colors.surface,
+      borderRadius: 24,
+      padding: 20,
+      marginBottom: 25,
+      shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 4, elevation: 2,
+  },
+  divider: { height: 1, backgroundColor: Colors.border, marginVertical: 15 },
+  
+  // Stepper
+  stepperRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  iconBox: { width: 32, height: 32, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+  stepperLabel: { fontSize: 15, fontWeight: '600', color: Colors.textPrimary },
+  
+  stepperControls: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC', borderRadius: 12, padding: 4 },
+  stepBtn: { width: 32, height: 32, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.surface, borderRadius: 8, shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 2, elevation: 1 },
+  stepValue: { width: 40, textAlign: 'center', fontSize: 16, fontWeight: '700', fontFamily: 'SpaceMono-Regular', color: Colors.textPrimary },
+
+  // Save Button
+  saveButton: {
+      backgroundColor: Colors.textPrimary, // Dark Theme for button
+      paddingVertical: 18,
+      borderRadius: 20,
+      alignItems: 'center',
+      shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 5,
+  },
+  saveButtonText: { color: 'white', fontWeight: '700', fontSize: 16 },
 });

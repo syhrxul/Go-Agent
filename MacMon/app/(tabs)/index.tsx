@@ -1,213 +1,175 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { ScrollView, TouchableOpacity, StatusBar, Dimensions } from 'react-native';
 import { Text, View } from '@/components/Themed';
-import { FontAwesome } from '@expo/vector-icons';
+import { FontAwesome, MaterialIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 
-// IMPORT HOOK CONTEXT
+// Contexts
 import { usePomodoro } from '@/context/PomodoroContext';
-import { useFinance } from '@/context/FinanceContext'; // <--- IMPORT BARU
+import { useFinance } from '@/context/FinanceContext';
 
-export default function TabOneScreen() {
+// Import Styles Baru
+import { styles, Colors } from './home.styles'; 
+
+export default function DashboardLandscape() {
   const [date, setDate] = useState(new Date());
-
-  // 1. AMBIL DATA POMODORO
+  
+  // Context Data
   const { timeLeft, isActive, toggleTimer, isBreak, isLongBreak } = usePomodoro();
-
-  // 2. AMBIL DATA KEUANGAN (BARU)
   const { balance, todayExpense } = useFinance();
 
-  // Effect untuk Jam Realtime
+  // 1. Force Landscape & Clock Timer
   useEffect(() => {
+
     const timer = setInterval(() => setDate(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
 
-  // Helper Format Waktu (mm:ss)
+  // Format Helpers
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
     const s = seconds % 60;
     return `${m < 10 ? '0' + m : m}:${s < 10 ? '0' + s : s}`;
   };
 
-  // Helper Format Rupiah (BARU)
   const formatRupiah = (num: number) => {
     return 'Rp ' + num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
   };
 
+  const pomodoroColor = isBreak ? Colors.success : Colors.primary;
+  const pomodoroStatus = isBreak ? (isLongBreak ? "Long Break" : "Short Break") : "Focus Mode";
+
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor={Colors.background} />
+      
+      <View style={styles.mainLayout}>
         
-        {/* HEADER & JAM */}
-        <View style={styles.headerSection}>
-          <Text style={styles.greetingText}>Halo, Alul 😸</Text>
-          <Text style={styles.clockText}>
-            {date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
-          </Text>
-          <Text style={styles.dateText}>
-            {date.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-          </Text>
-        </View>
-
-        {/* GRID DASHBOARD */}
-        <View style={styles.gridContainer}>
+        {/* === KOLOM KIRI (65%): Header + Widgets === */}
+        <View style={styles.leftColumn}>
           
-          {/* WIDGET POMODORO */}
-          <TouchableOpacity 
-            style={[
-              styles.card, 
-              styles.cardPomodoro, 
-              isBreak ? { backgroundColor: isLongBreak ? '#45B7D1' : '#4ECDC4' } : {} 
-            ]} 
-            activeOpacity={0.9}
-            onPress={() => router.push('/pomodoro-fullscreen')} 
-          >
-            <View style={styles.cardHeader}>
-              <FontAwesome name={isBreak ? "coffee" : "fire"} size={16} color="white" />
-              <View style={{flexDirection:'row', justifyContent:'space-between', flex:1, alignItems:'center'}}>
-                  <Text style={styles.cardTitleWhite}>
-                    {isBreak ? (isLongBreak ? "Long Break" : "Short Break") : "Focus Timer"}
-                  </Text>
-                  <FontAwesome name="expand" size={12} color="rgba(255,255,255,0.6)" /> 
-              </View>
-            </View>
-            
-            <Text style={styles.pomoTimerText}>{formatTime(timeLeft)}</Text>
-            
-            <TouchableOpacity 
-              style={styles.pomoButton} 
-              onPress={(e) => {
-                e.stopPropagation(); 
-                toggleTimer();       
-              }}
-            >
-              <Text style={styles.pomoButtonText}>
-                {isActive ? "PAUSE" : isBreak ? "START BREAK" : "START FOCUS"}
-              </Text>
-            </TouchableOpacity>
-          </TouchableOpacity>
-
-          {/* WIDGET KEUANGAN (DATA ASLI) */}
-          <TouchableOpacity 
-            style={[styles.card, styles.cardFinance]}
-            activeOpacity={0.9}
-            onPress={() => router.push('/finance')} // <--- NAVIGASI KE KEUANGAN
-          >
-            <View style={styles.cardHeader}>
-              <FontAwesome name="credit-card" size={16} color="#333" />
-              <View style={{flexDirection:'row', justifyContent:'space-between', flex:1, alignItems:'center'}}>
-                  <Text style={styles.cardTitleDark}>Keuangan</Text>
-                  <FontAwesome name="chevron-right" size={12} color="#ccc" /> 
-              </View>
-            </View>
-            
-            <View style={{marginTop: 10}}>
-              <Text style={styles.financeLabel}>Sisa Saldo</Text>
-              <Text style={styles.financeValue} numberOfLines={1} adjustsFontSizeToFit>
-                {formatRupiah(balance)}
+          {/* Header Landscape */}
+          <View style={styles.header}>
+            <View>
+              <Text style={styles.greetingText}>Halo, Alul 👋</Text>
+              <Text style={styles.dateText}>
+                {date.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' })}
               </Text>
             </View>
-            
-            <View style={{marginTop: 10}}>
-              <Text style={styles.financeLabel}>Pengeluaran Hari Ini</Text>
-              <Text style={[styles.financeValue, {color: '#FF3B30', fontSize: 14}]}>
-                 {todayExpense === 0 ? 'Rp 0' : `- ${formatRupiah(todayExpense)}`}
+            <View style={styles.clockContainer}>
+              <Text style={styles.clockText}>
+                {date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second:'2-digit', hour12: false }).replace(/\./g, ':')}
               </Text>
             </View>
-          </TouchableOpacity>
-
-        </View>
-
-        {/* WIDGET REMINDER */}
-        <View style={[styles.card, styles.cardFull]}>
-          <View style={styles.cardHeaderRow}>
-            <View style={{flexDirection:'row', alignItems:'center'}}>
-              <FontAwesome name="check-square-o" size={18} color="#007AFF" />
-              <Text style={[styles.cardTitleDark, {marginLeft: 8}]}>Reminder & Tugas</Text>
-            </View>
-            <TouchableOpacity><Text style={{color:'#007AFF', fontSize:12, fontWeight:'bold'}}>Lihat Semua</Text></TouchableOpacity>
           </View>
-          <TaskItem title="Meeting dengan Dosen" time="10:00 AM" completed={true} />
-          <TaskItem title="Bayar Tagihan Internet" time="13:00 PM" completed={false} />
+
+          {/* Row Kartu Utama */}
+          <View style={styles.cardRow}>
+            
+            {/* 1. Pomodoro Card (Modern Glass) */}
+            <TouchableOpacity 
+              style={[styles.card, styles.cardPomodoro]} 
+              activeOpacity={0.9}
+              onPress={() => router.push('/pomodoro-fullscreen')} 
+            >
+              <View style={styles.pomoHeader}>
+                <View style={[styles.statusTag, { backgroundColor: isBreak ? '#DCFCE7' : '#E0E7FF' }]}>
+                  <FontAwesome name={isBreak ? "coffee" : "fire"} size={12} color={pomodoroColor} />
+                  <Text style={[styles.statusText, { color: pomodoroColor }]}>{pomodoroStatus}</Text>
+                </View>
+                <TouchableOpacity onPress={(e) => { e.stopPropagation(); toggleTimer(); }}>
+                   <View style={[styles.playButtonCircle, { backgroundColor: pomodoroColor }]}>
+                      <FontAwesome name={isActive ? "pause" : "play"} size={12} color="white" />
+                   </View>
+                </TouchableOpacity>
+              </View>
+              
+              <Text style={[styles.timerBig, { color: pomodoroColor }]}>{formatTime(timeLeft)}</Text>
+              <Text style={styles.cardLabel}>Tap to fullscreen</Text>
+            </TouchableOpacity>
+
+            {/* 2. Finance Card */}
+            <TouchableOpacity 
+              style={[styles.card, styles.cardFinance]}
+              activeOpacity={0.9}
+              onPress={() => router.push('/finance')}
+            >
+              <View style={styles.financeHeader}>
+                <View style={styles.iconSquare}>
+                  <MaterialIcons name="account-balance-wallet" size={20} color={Colors.warning} />
+                </View>
+                <MaterialIcons name="arrow-outward" size={18} color={Colors.textSecondary} />
+              </View>
+              
+              <View style={styles.financeBody}>
+                <Text style={styles.labelSmall}>Total Saldo</Text>
+                <Text style={styles.balanceText}>{formatRupiah(balance)}</Text>
+                <View style={styles.expenseRow}>
+                  <Text style={styles.expenseLabel}>Pengeluaran Hari Ini:</Text>
+                  <Text style={styles.expenseValue}>{formatRupiah(todayExpense)}</Text>
+                </View>
+              </View>
+            </TouchableOpacity>
+
+          </View>
+
+           {/* Shortcuts Horizontal */}
+           <View style={styles.shortcutBar}>
+              <ShortcutItem label="Focus" icon="timer" onPress={() => router.push('/pomodoro')} />
+              <ShortcutItem label="Keuangan" icon="attach-money" onPress={() => router.push('/finance')} />
+              <ShortcutItem label="Mac Control" icon="computer" onPress={() => router.push('/FAM')} />
+              <ShortcutItem label="More" icon="widgets" onPress={() => {}} />
+           </View>
         </View>
 
-        {/* SHORTCUT MENU */}
-        <View style={{marginTop: 10}}>
-            <Text style={styles.sectionTitle}>Pintasan Menu</Text>
-            <View style={styles.shortcutGrid}>
-                <ShortcutButton label="Set Pomodoro" icon="cog" color="#FF6B6B" onPress={() => router.push('/pomodoro')} />
-                <ShortcutButton label="Keuangan" icon="money" color="#34C759" onPress={() => router.push('/finance')} />
-                <ShortcutButton label="FAM" icon="laptop" color="#4b2aefff" onPress={() => router.push('/FAM')} />
+        {/* === KOLOM KANAN (35%): Sidebar Agenda === */}
+        <View style={styles.rightColumn}>
+          <View style={styles.sidebarCard}>
+            <View style={styles.sidebarHeader}>
+              <Text style={styles.sectionTitle}>Agenda</Text>
+              <TouchableOpacity>
+                <Text style={styles.linkText}>See All</Text>
+              </TouchableOpacity>
             </View>
+            
+            <ScrollView showsVerticalScrollIndicator={false} style={{flex: 1}}>
+              <TaskItem title="Meeting Dosen" time="10:00" tag="Kampus" isDone={true} />
+              <TaskItem title="Bayar Wifi" time="13:30" tag="Personal" isDone={false} />
+              <TaskItem title="Project React" time="15:00" tag="Coding" isDone={false} />
+              <TaskItem title="Jogging Sore" time="17:00" tag="Health" isDone={false} />
+            </ScrollView>
+          </View>
         </View>
 
-      </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }
 
 // --- SUB COMPONENTS ---
 
-function TaskItem({ title, time, completed }: { title: string, time: string, completed: boolean }) {
-  return (
-    <View style={styles.taskRow}>
-      <FontAwesome name={completed ? "check-circle" : "circle-o"} size={20} color={completed ? "#34C759" : "#ccc"} />
-      <View style={{marginLeft: 12, flex: 1}}>
-        <Text style={[styles.taskTitle, completed && {textDecorationLine: 'line-through', color: '#aaa'}]}>{title}</Text>
+const ShortcutItem = ({ label, icon, onPress }: any) => (
+  <TouchableOpacity style={styles.shortcutItem} onPress={onPress}>
+    <View style={styles.shortcutIcon}>
+      <MaterialIcons name={icon as any} size={22} color={Colors.textPrimary} />
+    </View>
+    <Text style={styles.shortcutLabel}>{label}</Text>
+  </TouchableOpacity>
+);
+
+const TaskItem = ({ title, time, tag, isDone }: any) => (
+  <View style={styles.taskItem}>
+    <View style={[styles.checkCircle, isDone && styles.checkCircleDone]}>
+      {isDone && <MaterialIcons name="check" size={14} color="white" />}
+    </View>
+    <View style={{flex: 1}}>
+      <Text style={[styles.taskTitle, isDone && {textDecorationLine: 'line-through', color: Colors.textSecondary}]}>{title}</Text>
+      <View style={{flexDirection: 'row', alignItems: 'center'}}>
         <Text style={styles.taskTime}>{time}</Text>
+        <View style={styles.dot} />
+        <Text style={styles.taskTag}>{tag}</Text>
       </View>
     </View>
-  );
-}
-
-function ShortcutButton({ label, icon, color, onPress }: any) {
-    return (
-        <TouchableOpacity style={styles.shortcutBtn} onPress={onPress}>
-            <View style={[styles.iconCircle, {backgroundColor: color}]}>
-                <FontAwesome name={icon} size={20} color="white" />
-            </View>
-            <Text style={styles.shortcutText}>{label}</Text>
-        </TouchableOpacity>
-    )
-}
-
-// --- STYLES ---
-
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#f8f9fa' },
-  scrollContainer: { padding: 20, paddingBottom: 100 },
-  headerSection: { marginBottom: 20 },
-  greetingText: { fontSize: 16, color: '#666', marginBottom: 5 },
-  clockText: { fontSize: 32, fontWeight: 'bold', color: '#333' },
-  dateText: { fontSize: 14, color: '#888', marginTop: 2 },
-  
-  gridContainer: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
-  
-  card: { borderRadius: 20, padding: 15, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 4 },
-  
-  cardPomodoro: { width: '48%', backgroundColor: '#FF6B6B', alignItems: 'center', justifyContent: 'space-between', height: 160 },
-  cardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 5, width: '100%', borderBottomWidth: 0 },
-  cardTitleWhite: { color: 'white', fontWeight: 'bold', fontSize: 12, marginLeft: 5 },
-  pomoTimerText: { color: 'white', fontSize: 28, fontWeight: 'bold', marginVertical: 10 },
-  pomoButton: { backgroundColor: 'rgba(255,255,255,0.2)', paddingVertical: 8, paddingHorizontal: 15, borderRadius: 20, width: '100%', alignItems: 'center' },
-  pomoButtonText: { color: 'white', fontWeight: 'bold', fontSize: 12 },
-
-  cardFinance: { width: '48%', backgroundColor: 'white', height: 160 },
-  cardTitleDark: { color: '#333', fontWeight: 'bold', fontSize: 12, marginLeft: 5 },
-  financeLabel: { fontSize: 10, color: '#888' },
-  financeValue: { fontSize: 18, fontWeight: 'bold', color: '#333', marginBottom: 5 },
-  
-  cardFull: { width: '100%', backgroundColor: 'white', marginBottom: 20 },
-  cardHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
-  taskRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
-  taskTitle: { fontSize: 14, color: '#333', fontWeight: '500' },
-  taskTime: { fontSize: 10, color: '#999' },
-
-  sectionTitle: { fontSize: 18, fontWeight: 'bold', color: '#333', marginBottom: 15 },
-  shortcutGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
-  shortcutBtn: { width: '23%', alignItems: 'center', marginBottom: 15 },
-  iconCircle: { width: 50, height: 50, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginBottom: 8, elevation: 2, shadowColor:'#000', shadowOffset:{width:0,height:2}, shadowOpacity:0.1, shadowRadius:3 },
-  shortcutText: { fontSize: 11, color: '#555', textAlign: 'center', fontWeight: '500' },
-});
+  </View>
+);
