@@ -11,7 +11,7 @@ export default function PomodoroScreen() {
   const { 
       focusDuration, breakDuration, longBreakDuration, cycles, 
       updateSettings, timeLeft, isActive, toggleTimer, resetTimer,
-      isBreak, isLongBreak, completedCycles // Ambil state baru
+      isBreak, isLongBreak, completedCycles 
   } = usePomodoro();
 
   const [focus, setFocus] = useState(focusDuration.toString());
@@ -42,7 +42,6 @@ export default function PomodoroScreen() {
     return `${m < 10 ? '0' + m : m}:${s < 10 ? '0' + s : s}`;
   };
 
-  // Logic Status Text
   let statusText = "FOKUS";
   let statusColor = "#333";
   if (isBreak) {
@@ -64,7 +63,6 @@ export default function PomodoroScreen() {
         
         {/* TIMER PREVIEW BESAR */}
         <View style={styles.timerPreview}>
-            {/* STATUS DISPLAY */}
             <View style={{flexDirection:'row', alignItems:'center', marginBottom: 5}}>
                 <View style={[styles.badge, {backgroundColor: statusColor}]}>
                     <Text style={styles.badgeText}>{statusText}</Text>
@@ -76,12 +74,20 @@ export default function PomodoroScreen() {
 
             <Text style={styles.bigTimer}>{formatTime(timeLeft)}</Text>
             
-            <View style={{flexDirection: 'row', gap: 15, marginTop: 10}}>
-                <TouchableOpacity style={styles.controlBtn} onPress={toggleTimer}>
-                    <FontAwesome name={isActive ? "pause" : "play"} size={24} color="#FF6B6B" />
-                </TouchableOpacity>
+            <View style={{flexDirection: 'row', gap: 15, marginTop: 10, alignItems: 'center'}}>
+                {/* Reset */}
                 <TouchableOpacity style={styles.controlBtn} onPress={resetTimer}>
                     <FontAwesome name="refresh" size={24} color="#666" />
+                </TouchableOpacity>
+
+                {/* Play/Pause */}
+                <TouchableOpacity style={[styles.controlBtn, {width: 70, height: 70, borderRadius: 35, backgroundColor: '#FF6B6B'}]} onPress={toggleTimer}>
+                    <FontAwesome name={isActive ? "pause" : "play"} size={30} color="white" />
+                </TouchableOpacity>
+
+                {/* UPDATE: Tombol Fullscreen */}
+                <TouchableOpacity style={styles.controlBtn} onPress={() => router.push('/pomodoro-fullscreen')}>
+                    <FontAwesome name="expand" size={24} color="#666" />
                 </TouchableOpacity>
             </View>
         </View>
@@ -136,8 +142,6 @@ const styles = StyleSheet.create({
   divider: { height: 1, backgroundColor: '#f0f0f0', marginVertical: 10 },
   saveButton: { backgroundColor: '#FF6B6B', padding: 15, borderRadius: 15, alignItems: 'center', marginTop: 10 },
   saveButtonText: { color: 'white', fontWeight: 'bold', fontSize: 16 },
-  
-  // Styles Baru untuk Badge
   badge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12 },
   badgeText: { color: 'white', fontWeight: 'bold', fontSize: 12 }
 });

@@ -1,12 +1,13 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage'; 
+import { Audio } from 'expo-av'; // 1. Import Audio
 
 type PomodoroContextType = {
   timeLeft: number;
   isActive: boolean;
   isBreak: boolean;
-  isLongBreak: boolean; // Tambahan: Biar tahu sedang Long Break atau Short Break
-  completedCycles: number; // Tambahan: Menghitung Lap saat ini
+  isLongBreak: boolean;
+  completedCycles: number;
   focusDuration: number;
   breakDuration: number;
   longBreakDuration: number;
@@ -44,8 +45,38 @@ export const PomodoroProvider = ({ children }: { children: React.ReactNode }) =>
   const [timeLeft, setTimeLeft] = useState(focusDuration * 60);
   const [isActive, setIsActive] = useState(false);
   const [isBreak, setIsBreak] = useState(false);
-  const [isLongBreak, setIsLongBreak] = useState(false); // State baru
-  const [completedCycles, setCompletedCycles] = useState(0); // State baru
+  const [isLongBreak, setIsLongBreak] = useState(false);
+  const [completedCycles, setCompletedCycles] = useState(0);
+
+  // Object Sound
+  const [sound, setSound] = useState<Audio.Sound | null>(null);
+
+  // --- FUNGSI PLAY SOUND ---
+  async function playSound() {
+    try {
+      console.log('Loading Sound');
+      // Pastikan file 'bell.mp3' ada di folder assets
+      const { sound } = await Audio.Sound.createAsync( 
+         require('../assets/reminder.mp3') 
+      );
+      setSound(sound);
+
+      console.log('Playing Sound');
+      await sound.playAsync();
+    } catch (error) {
+      console.log("Error playing sound: ", error);
+    }
+  }
+
+  // Cleanup Sound saat unmount (mencegah memory leak)
+  useEffect(() => {
+    return () => {
+      if (sound) {
+        console.log('Unloading Sound');
+        sound.unloadAsync();
+      }
+    };
+  }, [sound]);
 
   // --- LOAD SETTINGS ---
   useEffect(() => {
@@ -74,35 +105,32 @@ export const PomodoroProvider = ({ children }: { children: React.ReactNode }) =>
     if (isActive && timeLeft > 0) {
       interval = setInterval(() => setTimeLeft((t) => t - 1), 1000);
     } else if (timeLeft === 0 && isActive) {
-      // --- WAKTU HABIS, TENTUKAN LANGKAH SELANJUTNYA ---
       
+      // 3. BUNYIKAN SUARA SAAT WAKTU HABIS
+      playSound(); 
+
+      // --- TENTUKAN LANGKAH SELANJUTNYA ---
       if (!isBreak) {
         // ==> FOKUS SELESAI
         const newCompleted = completedCycles + 1;
         setCompletedCycles(newCompleted);
 
-        // Cek apakah saatnya Long Break (Setiap 2 Laps)
-        // Contoh: Lap 2, 4, 6 akan trigger Long Break
         if (newCompleted % 2 === 0 && newCompleted !== 0) {
             setIsBreak(true);
             setIsLongBreak(true);
             setTimeLeft(longBreakDuration * 60);
         } else {
-            // Short Break
             setIsBreak(true);
             setIsLongBreak(false);
             setTimeLeft(breakDuration * 60);
         }
         
       } else {
-        // ==> ISTIRAHAT SELESAI (Short atau Long)
-        // Kembali ke Fokus
+        // ==> ISTIRAHAT SELESAI
         setIsBreak(false);
         setIsLongBreak(false);
         setTimeLeft(focusDuration * 60);
       }
-      
-      // PENTING: Jangan set isActive(false) agar timer jalan terus (Auto-start)
     }
 
     return () => { if (interval) clearInterval(interval); };
@@ -114,7 +142,7 @@ export const PomodoroProvider = ({ children }: { children: React.ReactNode }) =>
     setIsActive(false);
     setIsBreak(false);
     setIsLongBreak(false);
-    setCompletedCycles(0); // Reset lap
+    setCompletedCycles(0); 
     setTimeLeft(focusDuration * 60);
   };
 

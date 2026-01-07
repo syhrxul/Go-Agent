@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
+import { StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { Text, View } from '@/components/Themed';
 import { FontAwesome } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -12,9 +12,9 @@ export default function TabOneScreen() {
   const [date, setDate] = useState(new Date());
 
   // AMBIL DATA DARI GLOBAL CONTEXT
-  const { timeLeft, isActive, toggleTimer, isBreak } = usePomodoro();
+  const { timeLeft, isActive, toggleTimer, isBreak, isLongBreak } = usePomodoro();
 
-  // Effect untuk Jam Realtime (UI Saja)
+  // Effect untuk Jam Realtime
   useEffect(() => {
     const timer = setInterval(() => setDate(new Date()), 1000);
     return () => clearInterval(timer);
@@ -31,7 +31,7 @@ export default function TabOneScreen() {
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
         
-        {/* HEADER & JAM */}
+        {/* 1. HEADER & JAM */}
         <View style={styles.headerSection}>
           <Text style={styles.greetingText}>Halo, User 👋</Text>
           <Text style={styles.clockText}>
@@ -42,28 +42,28 @@ export default function TabOneScreen() {
           </Text>
         </View>
 
-        {/* GRID DASHBOARD */}
+        {/* 2. GRID DASHBOARD (Pomodoro & Keuangan) */}
         <View style={styles.gridContainer}>
           
-          {/* WIDGET POMODORO (Global State) */}
+          {/* WIDGET POMODORO */}
           <TouchableOpacity 
-            // Update logic warna background: Cek Long Break atau Short Break
             style={[
-                styles.card, 
-                styles.cardPomodoro, 
-                isBreak ? {backgroundColor: isLongBreak ? '#45B7D1' : '#4ECDC4'} : {} // Biru Laut (Long) atau Hijau Tosca (Short)
+              styles.card, 
+              styles.cardPomodoro, 
+              isBreak ? { backgroundColor: isLongBreak ? '#45B7D1' : '#4ECDC4' } : {} 
             ]} 
             activeOpacity={0.9}
-            onPress={() => router.push('./pomodoro')} 
+            // Klik kartu membuka Fullscreen
+            onPress={() => router.push('/pomodoro-fullscreen')} 
           >
             <View style={styles.cardHeader}>
               <FontAwesome name={isBreak ? "coffee" : "fire"} size={16} color="white" />
-              <View style={{flexDirection:'row', justifyContent:'space-between', flex:1}}>
-                  {/* Update Text Title */}
+              <View style={{flexDirection:'row', justifyContent:'space-between', flex:1, alignItems:'center'}}>
                   <Text style={styles.cardTitleWhite}>
-                      {isBreak ? (isLongBreak ? "Long Break" : "Short Break") : "Focus Timer"}
+                    {isBreak ? (isLongBreak ? "Long Break" : "Short Break") : "Focus Timer"}
                   </Text>
-                  <FontAwesome name="cog" size={16} color="rgba(255,255,255,0.8)" /> 
+                  {/* Ikon Expand kecil sebagai petunjuk bisa diklik */}
+                  <FontAwesome name="expand" size={12} color="rgba(255,255,255,0.6)" /> 
               </View>
             </View>
             
@@ -82,7 +82,7 @@ export default function TabOneScreen() {
             </TouchableOpacity>
           </TouchableOpacity>
 
-          {/* WIDGET KEUANGAN (Dummy) */}
+          {/* WIDGET KEUANGAN */}
           <View style={[styles.card, styles.cardFinance]}>
             <View style={styles.cardHeader}>
               <FontAwesome name="credit-card" size={16} color="#333" />
@@ -99,7 +99,7 @@ export default function TabOneScreen() {
           </View>
         </View>
 
-        {/* WIDGET REMINDER */}
+        {/* 3. WIDGET REMINDER */}
         <View style={[styles.card, styles.cardFull]}>
           <View style={styles.cardHeaderRow}>
             <View style={{flexDirection:'row', alignItems:'center'}}>
@@ -112,13 +112,47 @@ export default function TabOneScreen() {
           <TaskItem title="Bayar Tagihan Internet" time="13:00 PM" completed={false} />
         </View>
 
+        {/* 4. SECTION BARU: MENU & PINTASAN */}
+        <View style={{marginTop: 10}}>
+            <Text style={styles.sectionTitle}>Pintasan Menu</Text>
+            
+            <View style={styles.shortcutGrid}>
+                
+                {/* TOMBOL 1: SETTING POMODORO */}
+                <ShortcutButton 
+                    label="Set Pomodoro" 
+                    icon="cog" 
+                    color="#FF6B6B" 
+                    onPress={() => router.push('/pomodoro')} 
+                />
+
+
+                {/* TOMBOL 3: KALENDER (Dummy) */}
+                <ShortcutButton 
+                    label="Kalender" 
+                    icon="calendar" 
+                    color="#FF9500" 
+                    onPress={() => {}} 
+                />
+
+                {/* TOMBOL 4: STATISTIK (Dummy) */}
+                <ShortcutButton 
+                    label="Statistik" 
+                    icon="bar-chart" 
+                    color="#5856D6" 
+                    onPress={() => {}} 
+                />
+
+            </View>
+        </View>
+
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-// Sub-components dan Styles tetap sama seperti sebelumnya...
-// (Pastikan menyalin bagian Styles dan TaskItem dari jawaban sebelumnya)
+// --- KOMPONEN PENDUKUNG ---
+
 function TaskItem({ title, time, completed }: { title: string, time: string, completed: boolean }) {
   return (
     <View style={styles.taskRow}>
@@ -131,28 +165,57 @@ function TaskItem({ title, time, completed }: { title: string, time: string, com
   );
 }
 
+function ShortcutButton({ label, icon, color, onPress }: any) {
+    return (
+        <TouchableOpacity style={styles.shortcutBtn} onPress={onPress}>
+            <View style={[styles.iconCircle, {backgroundColor: color}]}>
+                <FontAwesome name={icon} size={20} color="white" />
+            </View>
+            <Text style={styles.shortcutText}>{label}</Text>
+        </TouchableOpacity>
+    )
+}
+
+// --- STYLES ---
+
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#f8f9fa' },
   scrollContainer: { padding: 20, paddingBottom: 100 },
+  
   headerSection: { marginBottom: 20 },
   greetingText: { fontSize: 16, color: '#666', marginBottom: 5 },
   clockText: { fontSize: 32, fontWeight: 'bold', color: '#333' },
   dateText: { fontSize: 14, color: '#888', marginTop: 2 },
+  
   gridContainer: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
+  
   card: { borderRadius: 20, padding: 15, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 4 },
+  
+  // Pomodoro
   cardPomodoro: { width: '48%', backgroundColor: '#FF6B6B', alignItems: 'center', justifyContent: 'space-between', height: 160 },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 5, width: '100%', borderBottomWidth: 0 },
   cardTitleWhite: { color: 'white', fontWeight: 'bold', fontSize: 12, marginLeft: 5 },
   pomoTimerText: { color: 'white', fontSize: 28, fontWeight: 'bold', marginVertical: 10 },
   pomoButton: { backgroundColor: 'rgba(255,255,255,0.2)', paddingVertical: 8, paddingHorizontal: 15, borderRadius: 20, width: '100%', alignItems: 'center' },
   pomoButtonText: { color: 'white', fontWeight: 'bold', fontSize: 12 },
+
+  // Finance
   cardFinance: { width: '48%', backgroundColor: 'white', height: 160 },
   cardTitleDark: { color: '#333', fontWeight: 'bold', fontSize: 12, marginLeft: 5 },
   financeLabel: { fontSize: 10, color: '#888' },
   financeValue: { fontSize: 18, fontWeight: 'bold', color: '#333', marginBottom: 5 },
-  cardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 5, width: '100%' },
+  
+  // Tasks
+  cardFull: { width: '100%', backgroundColor: 'white', marginBottom: 20 },
   cardHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
-  cardFull: { width: '100%', backgroundColor: 'white', marginBottom: 25 },
   taskRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
   taskTitle: { fontSize: 14, color: '#333', fontWeight: '500' },
   taskTime: { fontSize: 10, color: '#999' },
+
+  // Shortcut Section Styles
+  sectionTitle: { fontSize: 18, fontWeight: 'bold', color: '#333', marginBottom: 15 },
+  shortcutGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
+  shortcutBtn: { width: '23%', alignItems: 'center', marginBottom: 15 },
+  iconCircle: { width: 50, height: 50, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginBottom: 8, elevation: 2, shadowColor:'#000', shadowOffset:{width:0,height:2}, shadowOpacity:0.1, shadowRadius:3 },
+  shortcutText: { fontSize: 11, color: '#555', textAlign: 'center', fontWeight: '500' },
 });
